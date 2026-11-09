@@ -27,7 +27,7 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | `Super+Left` | Snap to the left half |
 | `Super+Right` | Snap to the right half |
 | `Super+Up` | Maximize |
-| `Super+Down` | Restore and keep the window inside the visible work area; otherwise minimize |
+| `Super+Down` | Restore maximized/fullscreen window; otherwise do nothing (never minimize or close) |
 | `Super+H` | Minimize (hidden `special:minimized` workspace) |
 | `Super+Shift+H` | Restore all minimized windows |
 | `Super+V` | Toggle floating |
@@ -69,8 +69,8 @@ height is 32px if Hyprland has not reserved the panel; override it with
 
 ## Notes
 
-* `Super+Down` mirrors Ubuntu: restore when the window is maximized, minimize
-  otherwise.
+* `Super+Down` restores maximized/fullscreen windows and leaves already-normal
+  floating windows untouched. Use `Super+H` to minimize explicitly.
 * Hyprland has no native minimize; Serpantinum uses a hidden special
   workspace (official Hyprland pattern) and restores windows with
   `Super+Shift+H`.

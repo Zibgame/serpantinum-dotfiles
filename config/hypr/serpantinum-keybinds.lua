@@ -61,20 +61,21 @@ hl.bind(mod .. " + up", function()
     hl.dispatch(hl.dsp.window.fullscreen({ action = "set", mode = 1 }))
 end)
 
--- Super+Down: restore when maximized/fullscreen, otherwise minimize.
--- Clamp a restored floating window to the usable screen area below the bar.
+-- Super+Down only RESTORES a maximized/fullscreen window.
+-- For an ordinary floating window, do nothing: never hide or close it.
+-- Keep restored windows inside the visible work area, below the top bar.
 hl.bind(mod .. " + down", function()
     local w = hl.get_active_window()
     if not w then return end
-    if w.fullscreen == 1 then
+    local fullscreen = tonumber(w.fullscreen) or 0
+    if fullscreen == 1 then
         hl.dispatch(hl.dsp.window.fullscreen({ action = "unset", mode = 1 }))
         hl.dispatch(hl.dsp.exec_cmd("'" .. snap .. "' ensure-visible"))
-    elseif w.fullscreen ~= 0 then
+    elseif fullscreen ~= 0 then
         hl.dispatch(hl.dsp.window.fullscreen({ action = "unset" }))
         hl.dispatch(hl.dsp.exec_cmd("'" .. snap .. "' ensure-visible"))
-    else
-        minimize()
     end
+    -- Already floating/normal: no action (Super+H is minimize).
 end)
 
 -- Super+H: minimize / Super+Shift+H: restore all minimized windows
