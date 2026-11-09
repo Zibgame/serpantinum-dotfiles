@@ -1,65 +1,52 @@
-
 #!/usr/bin/env bash
 # =============================================================================
-# Serpantinum Dotfiles
+# Serpantinum Dotfiles — Arch Linux / Hyprland / Zsh / Vim
 # =============================================================================
-# Personal Arch Linux environment:
-# Hyprland, Serpantinum Shell, Zsh, Vim and modular installer.
-#
 # Usage:
 #   git clone git@github.com:Zibgame/serpantinum-dotfiles.git
 #   cd serpantinum-dotfiles
 #   ./install.sh
 #
-# Existing files are backed up under:
-# ~/.local/state/serpantinum/backups/
+# Installation order:
+#   1. Preflight + Arch packages
+#   2. Official Serpantinum Shell
+#   3. All personal dotfiles (Zsh, Kitty, Vim, Hyprland, wallpapers...)
+#
+# Existing personal configs are backed up before the upstream install.
 # =============================================================================
 
 set -euo pipefail
 
 SERP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SERP_ROOT
-
 export SERP_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum"
 export SERP_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/serpantinum"
 export SERP_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/serpantinum"
 
-# Official Serpantinum project
 SERP_UPSTREAM_REPO="https://github.com/ilyamiro/serpantinum.git"
 SERP_UPSTREAM_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/serpantinum-upstream"
 SERP_UPSTREAM_VERSION="$SERP_STATE_DIR/version"
-SERP_UPSTREAM_BIN="$SERP_DATA_DIR/bin/serpantinum"
+SERP_UPSTREAM_CLI="$SERP_DATA_DIR/bin/serpantinum"
+SERP_UPSTREAM_DAEMON="$SERP_DATA_DIR/bin/serpantinumd"
 
-# Shared libraries
 # shellcheck source=lib/common.sh
 source "$SERP_ROOT/lib/common.sh"
-
 # shellcheck source=lib/detect.sh
 source "$SERP_ROOT/lib/detect.sh"
 
-
-# =============================================================================
-# Usage
-# =============================================================================
-
 usage() {
-    cat <<'EOF'
+    cat <<'HELP'
 Usage: ./install.sh [options]
 
 Options:
-  --help, -h       Show this help.
+  -h, --help       Show this help.
   --status         Show current installation status.
-  --no-packages    Skip package installation (including upstream).
+  --no-packages    Skip Arch package installation and upstream install.
   --no-upstream    Skip official Serpantinum installation.
-  --no-shell       Do not change login shell to Zsh.
+  --no-shell       Do not change the login shell to Zsh.
   --no-vim         Skip Vim plugin installation.
-EOF
+HELP
 }
-
-
-# =============================================================================
-# Arguments
-# =============================================================================
 
 parse_args() {
     SERP_SKIP_PACKAGES=0
@@ -67,244 +54,199 @@ parse_args() {
     SERP_SKIP_SHELL=0
     SERP_SKIP_VIM=0
 
+    local arg
     for arg in "$@"; do
         case "$arg" in
-            -h|--help)
-                usage
-                exit 0
-                ;;
-            --status)
-                source "$SERP_ROOT/lib/status.sh"
-                print_status
-                exit 0
-                ;;
-            --no-packages)
-                SERP_SKIP_PACKAGES=1
-                ;;
-            --no-upstream)
-                SERP_SKIP_UPSTREAM=1
-                ;;
-            --no-shell)
-                SERP_SKIP_SHELL=1
-                ;;
-            --no-vim)
-                SERP_SKIP_VIM=1
-                ;;
-            *)
-                die "Option inconnue: $arg (voir --help)"
-                ;;
+            -h|--help)       usage; exit 0 ;;
+            --status)        source "$SERP_ROOT/lib/status.sh"; print_status; exit 0 ;;
+            --no-packages)   SERP_SKIP_PACKAGES=1 ;;
+            --no-upstream)   SERP_SKIP_UPSTREAM=1 ;;
+            --no-shell)      SERP_SKIP_SHELL=1 ;;
+            --no-vim)        SERP_SKIP_VIM=1 ;;
+            *)               die "Option inconnue: $arg (voir --help)" ;;
         esac
     done
 }
 
-
-# =============================================================================
-# Banner
-# =============================================================================
-
 banner() {
     printf '\n%s' "$C_BOLD"
-
-    cat <<'EOF'
+    cat <<'BANNER'
   ____                       _   _
  / ___|  ___ _ __ _ __   __ _| |_(_)_ __  _   _ _ __ ___
  \___ \ / _ \ '__| '_ \ / _` | __| | '_ \| | | | '_ ` _ \
   ___) |  __/ |  | |_) | (_| | |_| | | | | |_| | | | | |
  |____/ \___|_|  | .__/ \__,_|\__|_|_| |_|\__,_|_| |_| |_|
                  |_|
-EOF
-
+BANNER
     printf '%s' "$C_RESET"
-    printf '  dotfiles - Arch Linux | Hyprland | Zsh | Vim\n'
-    printf '  Official Serpantinum Shell integration\n\n'
+    printf '  dotfiles — Arch Linux · Hyprland · Zsh · Vim\n'
+    printf '  Upstream d abord, configurations personnelles ensuite\n\n'
 }
 
-
-# =============================================================================
-# Official Serpantinum installation
-# =============================================================================
+# The upstream version marker alone is not sufficient: the daemon can create
+# this marker even when a full official installation has not completed.
+is_upstream_installed() {
+    [[ -f "$SERP_UPSTREAM_VERSION" &&
+       -x "$SERP_UPSTREAM_CLI" &&
+       -x "$SERP_UPSTREAM_DAEMON" &&
+       -f "$SERP_DATA_DIR/src/quickshell/Shell.qml" ]]
+}
 
 install_serpantinum_upstream() {
     log_step "Installation de Serpantinum officiel"
 
-    # Respect installer options
     if [[ "$SERP_SKIP_UPSTREAM" -eq 1 ]]; then
-        log_skip "Serpantinum upstream ignore (--no-upstream)"
+        log_skip "upstream ignore (--no-upstream)"
         return 0
     fi
-
     if [[ "$SERP_SKIP_PACKAGES" -eq 1 ]]; then
-        log_skip "Serpantinum upstream ignore (--no-packages)"
+        log_skip "upstream ignore (--no-packages)"
         return 0
     fi
-
-    # Already installed
-    if [[ -f "$SERP_UPSTREAM_VERSION" ]] &&
-       [[ -x "$SERP_UPSTREAM_BIN" ]]; then
+    if is_upstream_installed; then
         log_skip "Serpantinum officiel deja installe"
         return 0
     fi
 
-    # Requirements
-    if ! command -v git >/dev/null 2>&1; then
-        die "Git est necessaire pour installer Serpantinum"
-    fi
+    # The official installer can replace Hyprland and Kitty configuration.
+    # Save the current configuration before it starts.
+    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    backup_file "$config_home/hypr"
+    backup_file "$config_home/kitty"
+    backup_file "$config_home/serpantinum"
 
-    # Clone or update installer sources
+    command -v git >/dev/null 2>&1 || die "git est introuvable"
+
     if [[ -d "$SERP_UPSTREAM_DIR/.git" ]]; then
-        log_info "Actualisation des sources upstream"
-
-        git -C "$SERP_UPSTREAM_DIR" fetch \
-            --depth 1 origin master
-
-        git -C "$SERP_UPSTREAM_DIR" reset \
-            --hard FETCH_HEAD
+        log_info "Mise a jour des sources officielles"
+        git -C "$SERP_UPSTREAM_DIR" fetch --depth 1 origin master
+        git -C "$SERP_UPSTREAM_DIR" reset --hard FETCH_HEAD
     else
-        if [[ -e "$SERP_UPSTREAM_DIR" ]]; then
-            die "Dossier upstream existant non Git: $SERP_UPSTREAM_DIR"
-        fi
-
-        log_info "Clonage du projet officiel"
-
-        git clone \
-            --depth 1 \
-            --branch master \
-            "$SERP_UPSTREAM_REPO" \
-            "$SERP_UPSTREAM_DIR"
+        [[ ! -e "$SERP_UPSTREAM_DIR" ]] || \
+            die "Le dossier $SERP_UPSTREAM_DIR existe mais n'est pas un depot Git"
+        log_info "Clonage de Serpantinum officiel"
+        git clone --depth 1 --branch master \
+            "$SERP_UPSTREAM_REPO" "$SERP_UPSTREAM_DIR"
     fi
 
     local installer="$SERP_UPSTREAM_DIR/install/install.sh"
+    [[ -f "$installer" ]] || die "Installateur officiel introuvable: $installer"
 
-    if [[ ! -f "$installer" ]]; then
-        die "Installateur officiel introuvable: $installer"
-    fi
-
-    log_info "Lancement de l'installateur officiel"
-    log_info "Selectionne Hyprland dans le menu interactif."
-
-    # Run upstream installer separately to avoid variable conflicts
+    log_info "Dans le menu officiel, choisis Hyprland."
+    log_info "Ne redemarre pas la VM avant la fin des dotfiles personnels."
     bash "$installer"
 
-    # Verify installation
-    if [[ ! -f "$SERP_UPSTREAM_VERSION" ]] ||
-       [[ ! -x "$SERP_UPSTREAM_BIN" ]]; then
-        die "Installation de Serpantinum upstream incomplete"
-    fi
-
+    is_upstream_installed || die "Installation officielle incomplete: verifie les messages ci-dessus"
     log_ok "Serpantinum officiel installe"
 }
 
+run_module() {
+    local module="$1"
+    [[ -f "$module" ]] || return 0
+    log_step "$(basename "$module" .sh | sed 's/^[0-9]*-//')"
+    # shellcheck source=/dev/null
+    source "$module"
+}
 
-# =============================================================================
-# Resolve CLI name conflicts
-# =============================================================================
+# The personal Hyprland config replaces the upstream config. Ensure that the
+# upstream shell still starts from the personal Hyprland Lua configuration.
+# Note: this edits the source file in the locally cloned dotfiles repository.
+ensure_serpantinum_autostart() {
+    is_upstream_installed || return 0
 
-configure_serpantinum_cli() {
-    # The dotfiles and upstream both provide a "serpantinum" CLI.
-    # Give the dotfiles CLI a separate name.
-
-    if [[ ! -f "$SERP_UPSTREAM_VERSION" ]] ||
-       [[ ! -x "$SERP_UPSTREAM_BIN" ]]; then
+    local config="$SERP_ROOT/config/hypr/serpantinum-appearance.lua"
+    if [[ ! -f "$config" ]]; then
+        log_warn "Autostart non configure: $config introuvable"
+        return 0
+    fi
+    if grep -Fq 'serpantinumd start' "$config"; then
+        log_skip "autostart Serpantinum deja present"
+        return 0
+    fi
+    if ! grep -Fq 'hl.on("hyprland.start", function()' "$config"; then
+        log_warn "Bloc hyprland.start absent: autostart a configurer manuellement"
         return 0
     fi
 
-    log_step "Configuration des commandes Serpantinum"
-
-    mkdir -p "$HOME/.local/bin"
-
-    # Keep our dotfiles management CLI
-    link_config \
-        "$SERP_ROOT/bin/serpantinum" \
-        "$HOME/.local/bin/serpantinum-dotfiles"
-
-    # Restore official Serpantinum CLI after module 40
-    link_config \
-        "$SERP_UPSTREAM_BIN" \
-        "$HOME/.local/bin/serpantinum"
-
-    log_ok "CLI officiel: serpantinum"
-    log_ok "CLI dotfiles: serpantinum-dotfiles"
+    backup_file "$config"
+    sed -i '/hl\.on("hyprland\.start", function()/a\    hl.exec_cmd("env QT_QPA_PLATFORM=wayland serpantinumd start")' "$config"
+    log_ok "Demarrage automatique ajoute dans la configuration Hyprland"
 }
 
+# The 40-hyprland module links the dotfiles command to `serpantinum`.
+# Restore the official CLI there, keeping our own CLI under another name.
+configure_serpantinum_cli() {
+    is_upstream_installed || return 0
+    log_step "Commandes Serpantinum"
+    mkdir -p "$HOME/.local/bin"
 
-# =============================================================================
-# Summary
-# =============================================================================
+    link_config "$SERP_ROOT/bin/serpantinum" \
+        "$HOME/.local/bin/serpantinum-dotfiles"
+    link_config "$SERP_UPSTREAM_CLI" \
+        "$HOME/.local/bin/serpantinum"
+
+    log_ok "serpantinum = CLI officiel"
+    log_ok "serpantinum-dotfiles = gestion de tes dotfiles"
+}
 
 summary() {
     log_step "Serpantinum est pret"
-
     log_info "Depot        : $SERP_ROOT"
     log_info "Etat         : $SERP_STATE_DIR"
     log_info "Sauvegardes  : $SERP_STATE_DIR/backups"
     log_info "Fond d'ecran : $SERP_DATA_DIR/wallpapers/serpantinum.jpg"
 
-    if [[ -f "$SERP_UPSTREAM_VERSION" ]] &&
-       [[ -x "$SERP_UPSTREAM_BIN" ]]; then
+    if is_upstream_installed; then
         log_ok "Serpantinum Shell installe"
-        log_info "Lancement    : serpantinumd start"
-        log_info "Gestion      : serpantinum-dotfiles status"
+        log_info "CLI          : serpantinum"
+        log_info "Dotfiles     : serpantinum-dotfiles status"
     else
-        log_info "Gestion      : serpantinum status"
+        log_info "Serpantinum officiel non detecte"
     fi
-
-    log_info ""
-    log_info "Reconnecte-toi (ou lance 'exec zsh') pour charger Zsh."
-    log_info "Si Hyprland tourne, la configuration est deja rechargee."
+    log_info "Reconnecte-toi a la session Hyprland pour appliquer l'autostart."
+    log_info "Reconnecte-toi (ou exec zsh) pour charger Zsh."
 }
-
-
-# =============================================================================
-# Main
-# =============================================================================
 
 main() {
     parse_args "$@"
 
+    # Upstream refuses root/sudo and a root install damages per-user paths.
+    [[ "$EUID" -ne 0 ]] || die "Ne lance pas ce script avec sudo/root: ./install.sh"
+
     banner
     detect_environment
-
-    mkdir -p \
-        "$SERP_STATE_DIR/backups" \
-        "$SERP_DATA_DIR/wallpapers" \
-        "$SERP_CONFIG_DIR"
+    mkdir -p "$SERP_STATE_DIR/backups" "$SERP_DATA_DIR/wallpapers" "$SERP_CONFIG_DIR"
 
     if is_installed; then
-        log_step "Serpantinum deja installe - verification et mise a jour"
+        log_step "Verification / mise a jour des dotfiles"
     else
-        log_step "Premiere installation de Serpantinum"
+        log_step "Premiere installation des dotfiles"
     fi
 
-    local module
-    local module_name
-    local upstream_processed=0
-
-    # Execute modules in filename order.
+    # Stage 1: preparation, including the pacman dependencies.
+    local module filename
     for module in "$SERP_ROOT"/modules/*.sh; do
         [[ -f "$module" ]] || continue
-
-        module_name="$(basename "$module")"
-
-        # Install upstream after package installation,
-        # before desktop configuration modules.
-        if [[ "$upstream_processed" -eq 0 ]] &&
-           [[ "$module_name" > "10-packages.sh" ]]; then
-            install_serpantinum_upstream
-            upstream_processed=1
-        fi
-
-        log_step "$(basename "$module" .sh | sed 's/^[0-9]*-//')"
-
-        # shellcheck source=/dev/null
-        source "$module"
+        filename="${module##*/}"
+        case "$filename" in
+            0[0-9]-*|1[0-9]-*) run_module "$module" ;;
+        esac
     done
 
-    # Fallback if no module follows 10-packages.sh.
-    if [[ "$upstream_processed" -eq 0 ]]; then
-        install_serpantinum_upstream
-    fi
+    # Stage 2: official Serpantinum must run BEFORE personal configurations.
+    install_serpantinum_upstream
 
-    # Resolve upstream/dotfiles command conflicts.
+    # Stage 3: restore all personal configurations AFTER the official installer.
+    for module in "$SERP_ROOT"/modules/*.sh; do
+        [[ -f "$module" ]] || continue
+        filename="${module##*/}"
+        case "$filename" in
+            0[0-9]-*|1[0-9]-*) ;; # already executed
+            *) run_module "$module" ;;
+        esac
+    done
+
+    ensure_serpantinum_autostart
     configure_serpantinum_cli
 
     mark_installed
