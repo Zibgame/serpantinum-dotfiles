@@ -22,10 +22,28 @@ fi
 
 case "${1:-}" in
     start)
-        # Write a persistent crash/startup trace: useful when launched from Hyprland.
+        # VirtualBox has incomplete virtual GPU support for some Qt Quick surfaces.
+        # Match Serpantinum's known working guest workaround without affecting hardware.
+        virtualbox=0
+        if command -v systemd-detect-virt >/dev/null 2>&1 &&
+           [[ "$(systemd-detect-virt --vm 2>/dev/null || true)" == "oracle" ]]; then
+            virtualbox=1
+        elif [[ -r /sys/class/dmi/id/product_name ]] &&
+             grep -qi 'virtualbox' /sys/class/dmi/id/product_name; then
+            virtualbox=1
+        fi
+        if (( virtualbox )); then
+            export QT_QUICK_BACKEND="${SERP_APP_SWITCHER_QT_BACKEND:-software}"
+        fi
+
         log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum"
         mkdir -p "$log_dir"
-        exec "$quickshell_bin" -p "$dir" >"$log_dir/app-switcher.log" 2>&1
+        export QSG_INFO=1
+        {
+            printf '[%s] Hypr App Switcher start (backend=%s, virtualbox=%s)\n' \
+                "$(date -Is)" "${QT_QUICK_BACKEND:-default}" "$virtualbox"
+        } >>"$log_dir/app-switcher.log"
+        exec "$quickshell_bin" -p "$dir" >>"$log_dir/app-switcher.log" 2>&1
         ;;
     next|prev|toggle|close|release|select)
         exec "$quickshell_bin" ipc -p "$dir" --any-display call app-switcher "$1"
