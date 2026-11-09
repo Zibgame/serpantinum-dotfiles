@@ -20,8 +20,8 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 
 | Shortcut | Action |
 |---|---|
-| `Alt+Tab` | Next window |
-| `Alt+Shift+Tab` | Previous window |
+| `Alt+Tab` | Hypr App Switcher: next window (visual carousel) |
+| `Alt+Shift+Tab` | Hypr App Switcher: previous window |
 | `Alt+F4` | Close window |
 | `Super+Q` | Close window (convenience) |
 | `Super+Left` | Snap to the left half |
@@ -74,5 +74,5 @@ height is 32px if Hyprland has not reserved the panel; override it with
 * Hyprland has no native minimize; Serpantinum uses a hidden special
   workspace (official Hyprland pattern) and restores windows with
   `Super+Shift+H`.
-* Alt+Tab cycles windows directly — Wayland does not expose Ubuntu's
-  thumbnail switcher to the compositor.
+* Alt+Tab uses the Quickshell-based Hypr App Switcher installed by `./install.sh`.
+  Live window previews may be limited by the graphics backend in VirtualBox.

@@ -6,9 +6,11 @@ set -euo pipefail
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 launcher="$HOME/.local/bin/serpantinum-shell"
+app_switcher_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
 last_instance=""
 attempts=0
 started=0
+switcher_started=0
 
 log() {
     printf '[%s] %s\n' "$(date -Is)" "$*"
@@ -32,6 +34,7 @@ while true; do
         last_instance="$instance"
         attempts=0
         started=0
+        switcher_started=0
         log "Session Hyprland detectee: $instance ($socket)"
         # Give SDDM/Hyprland time to complete the graphical login.
         sleep 3
@@ -59,6 +62,22 @@ while true; do
             fi
         else
             log "Commande hyprctl eval en echec"
+        fi
+    fi
+
+    # Launch the visual Alt+Tab only after the main Serpantinum shell is ready.
+    # Launching it earlier would fool the generic Quickshell detection above.
+    if (( started && ! switcher_started )) &&
+       [[ -f "$app_switcher_dir/shell.qml" ]] &&
+       command -v qs >/dev/null 2>&1; then
+        if pgrep -u "$(id -u)" -f '(qs|quickshell).*hypr-app-switcher' >/dev/null 2>&1; then
+            log "Hypr App Switcher deja lance"
+            switcher_started=1
+        elif hyprctl --instance 0 eval "hl.exec_cmd(\"qs -p '$app_switcher_dir'\")" >/dev/null 2>&1; then
+            log "Lancement de Hypr App Switcher demande"
+            switcher_started=1
+        else
+            log "Echec du lancement de Hypr App Switcher"
         fi
     fi
 
