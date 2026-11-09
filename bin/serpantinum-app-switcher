@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Hypr App Switcher launcher: support either Quickshell executable name.
+# The application is managed separately from the main Serpantinum shell.
+set -euo pipefail
+
+dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
+if [[ ! -f "$dir/shell.qml" ]]; then
+    printf 'Hypr App Switcher not installed: %s\n' "$dir" >&2
+    exit 1
+fi
+
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+if command -v qs >/dev/null 2>&1; then
+    quickshell_bin="$(command -v qs)"
+elif command -v quickshell >/dev/null 2>&1; then
+    quickshell_bin="$(command -v quickshell)"
+else
+    printf 'Quickshell not found (neither qs nor quickshell).\n' >&2
+    exit 1
+fi
+
+case "${1:-}" in
+    start)
+        exec "$quickshell_bin" -p "$dir"
+        ;;
+    next|prev|toggle|close|release|select)
+        exec "$quickshell_bin" -p "$dir" ipc call app-switcher "$1"
+        ;;
+    *)
+        printf 'Usage: serpantinum-app-switcher {start|next|prev|toggle|close|release|select}\n' >&2
+        exit 2
+        ;;
+esac

@@ -7,10 +7,12 @@ set -euo pipefail
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 launcher="$HOME/.local/bin/serpantinum-shell"
 app_switcher_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
+switcher_launcher="$HOME/.local/bin/serpantinum-app-switcher"
 last_instance=""
 attempts=0
 started=0
 switcher_started=0
+switcher_attempts=0
 
 log() {
     printf '[%s] %s\n' "$(date -Is)" "$*"
@@ -35,6 +37,7 @@ while true; do
         attempts=0
         started=0
         switcher_started=0
+        switcher_attempts=0
         log "Session Hyprland detectee: $instance ($socket)"
         # Give SDDM/Hyprland time to complete the graphical login.
         sleep 3
@@ -69,15 +72,24 @@ while true; do
     # Launching it earlier would fool the generic Quickshell detection above.
     if (( started && ! switcher_started )) &&
        [[ -f "$app_switcher_dir/shell.qml" ]] &&
-       command -v qs >/dev/null 2>&1; then
+       [[ -x "$switcher_launcher" ]]; then
         if pgrep -u "$(id -u)" -f '(qs|quickshell).*hypr-app-switcher' >/dev/null 2>&1; then
             log "Hypr App Switcher deja lance"
             switcher_started=1
-        elif hyprctl --instance 0 eval "hl.exec_cmd(\"qs -p '$app_switcher_dir'\")" >/dev/null 2>&1; then
-            log "Lancement de Hypr App Switcher demande"
-            switcher_started=1
-        else
-            log "Echec du lancement de Hypr App Switcher"
+        elif (( switcher_attempts < 3 )); then
+            switcher_attempts=$((switcher_attempts + 1))
+            log "Hypr App Switcher: lancement $switcher_attempts/3"
+            if hyprctl --instance 0 eval "hl.exec_cmd(\"$switcher_launcher start\")" >/dev/null 2>&1; then
+                sleep 1
+                if pgrep -u "$(id -u)" -f '(qs|quickshell).*hypr-app-switcher' >/dev/null 2>&1; then
+                    switcher_started=1
+                    log "Hypr App Switcher demarre"
+                else
+                    log "Hypr App Switcher s'est arrete; verification des erreurs necessaire"
+                fi
+            else
+                log "Echec du lancement de Hypr App Switcher"
+            fi
         fi
     fi
 

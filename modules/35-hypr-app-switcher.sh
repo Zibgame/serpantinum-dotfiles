@@ -38,8 +38,8 @@ install_hypr_app_switcher() {
         return 0
     fi
 
-    if ! command -v qs >/dev/null 2>&1; then
-        log_warn "hypr-app-switcher installe mais 'qs' (Quickshell) est absent"
+    if ! command -v qs >/dev/null 2>&1 && ! command -v quickshell >/dev/null 2>&1; then
+        log_warn "hypr-app-switcher installe mais Quickshell est absent (qs/quickshell)"
     fi
     log_ok "Hypr App Switcher disponible dans $dir"
 }

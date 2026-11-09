@@ -13,7 +13,7 @@ do
     link_config "$SERP_ROOT/config/hypr/$module" "$HYPR_CONFIG_DIR/$module"
 done
 
-for helper in serpantinum-terminal serpantinum-snap serpantinum-shell; do
+for helper in serpantinum-terminal serpantinum-snap serpantinum-shell serpantinum-app-switcher; do
     link_config "$SERP_ROOT/bin/$helper" "$HOME/.local/bin/$helper"
 done
 

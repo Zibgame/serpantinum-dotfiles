@@ -45,10 +45,9 @@ hl.bind("Super_L", hl.dsp.exec_cmd("serpantinum msg toggle launcher"), { release
 hl.bind("ALT + F4", hl.dsp.window.close())
 hl.bind(mod .. " + Q", hl.dsp.window.close())
 -- Quickshell visual Alt+Tab installed by modules/35-hypr-app-switcher.sh.
-local data_home = os.getenv("XDG_DATA_HOME") or (home .. "/.local/share")
-local switcher_dir = data_home .. "/hypr-app-switcher"
-hl.bind("ALT + Tab", hl.dsp.exec_cmd("qs -p '" .. switcher_dir .. "' ipc call app-switcher next"))
-hl.bind("ALT + SHIFT + Tab", hl.dsp.exec_cmd("qs -p '" .. switcher_dir .. "' ipc call app-switcher prev"))
+local switcher = home .. "/.local/bin/serpantinum-app-switcher"
+hl.bind("ALT + Tab", hl.dsp.exec_cmd("'" .. switcher .. "' next"), { description = "Visual app switcher: next" })
+hl.bind("ALT + SHIFT + Tab", hl.dsp.exec_cmd("'" .. switcher .. "' prev"), { description = "Visual app switcher: previous" })
 
 ------------------------------------------------------------
 -- Ubuntu window snapping (floating windows)
