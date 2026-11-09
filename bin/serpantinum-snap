@@ -135,11 +135,13 @@ print(int(x), int(y), int(w), int(h))
     exit 0
 fi
 
-# Direction-aware snapping for floating windows:
-# top wide -> top-left/right quarter;
-# top-left + LEFT or top-right + RIGHT -> expand to full-height side half;
-# top-left + RIGHT or top-right + LEFT -> move to opposite upper quarter.
-# Detect the active window's current geometry, not a shared state.
+# Stateful-by-geometry snapping for floating windows:
+# top wide -> upper-left/right quarter;
+# upper-left + LEFT or upper-right + RIGHT -> expand to a tall side half;
+# tall-left + RIGHT -> return to upper-left quarter (reverse the expansion);
+# tall-right + LEFT -> return to upper-right quarter (reverse expansion);
+# opposite arrow on a small upper quarter moves to the other upper quarter.
+# Detect per-window geometry, never a shared global flag.
 snap_state="other"
 if [[ "$mode" == "left" || "$mode" == "right" ]]; then
     snap_state="$(hyprctl -j activewindow | python3 -c '
@@ -150,13 +152,23 @@ x, y = map(int, win.get("at") or (-10000, -10000))
 w, h = map(int, win.get("size") or (0, 0))
 near = lambda a, b: abs(a - b) <= 12
 half_w, half_h = mw // 2, mh // 2
-if near(y, my) and near(h, half_h):
-    if near(x, mx) and near(w, mw):
-        print("top")
-    elif near(x, mx) and near(w, half_w):
-        print("top-left")
-    elif near(x, mx + half_w) and near(w, mw - half_w):
-        print("top-right")
+if near(y, my):
+    if near(h, half_h):
+        if near(x, mx) and near(w, mw):
+            print("top")
+        elif near(x, mx) and near(w, half_w):
+            print("top-left")
+        elif near(x, mx + half_w) and near(w, mw - half_w):
+            print("top-right")
+        else:
+            print("other")
+    elif near(h, mh):
+        if near(x, mx) and near(w, half_w):
+            print("full-left")
+        elif near(x, mx + half_w) and near(w, mw - half_w):
+            print("full-right")
+        else:
+            print("other")
     else:
         print("other")
 else:
@@ -167,17 +179,20 @@ fi
 case "$mode" in
     left)
         x=$mx; y=$my; w=$((mw / 2)); h=$mh
-        # Top-wide or opposite upper quarter -> small upper-left quarter.
-        # Already top-left -> expand into the full-height left half.
-        if [[ "$snap_state" == "top" || "$snap_state" == "top-right" ]]; then
+        if [[ "$snap_state" == "full-right" ]]; then
+            # Reverse a right-side expansion: return to the RIGHT upper quarter.
+            x=$((mx + mw / 2)); w=$((mw - mw / 2)); h=$((mh / 2))
+        elif [[ "$snap_state" == "top" || "$snap_state" == "top-right" ]]; then
+            # From top-wide or the other upper corner, stay compact.
             h=$((mh / 2))
         fi
         ;;
     right)
         x=$((mx + mw / 2)); y=$my; w=$((mw - mw / 2)); h=$mh
-        # Top-wide or opposite upper quarter -> small upper-right quarter.
-        # Already top-right -> expand into the full-height right half.
-        if [[ "$snap_state" == "top" || "$snap_state" == "top-left" ]]; then
+        if [[ "$snap_state" == "full-left" ]]; then
+            # Reverse a left-side expansion: return to the LEFT upper quarter.
+            x=$mx; w=$((mw / 2)); h=$((mh / 2))
+        elif [[ "$snap_state" == "top" || "$snap_state" == "top-left" ]]; then
             h=$((mh / 2))
         fi
         ;;
