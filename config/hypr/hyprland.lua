@@ -6,7 +6,7 @@
 -- Terminal shortcuts are registered here, before optional modules.
 -- If a secondary config module fails, these still work in Hyprland 0.57.
 local home = os.getenv("HOME")
-local terminal = home .. "/.local/bin/serpantinum-terminal"
+local terminal = "gnome-terminal"
 
 hl.bind("CTRL + ALT + T", hl.dsp.exec_cmd(terminal), { description = "Open terminal" })
 hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal), { description = "Open terminal" })
