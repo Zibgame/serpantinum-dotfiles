@@ -28,7 +28,7 @@ case "${1:-}" in
         exec "$quickshell_bin" -p "$dir" >"$log_dir/app-switcher.log" 2>&1
         ;;
     next|prev|toggle|close|release|select)
-        exec "$quickshell_bin" -p "$dir" --any-display ipc call app-switcher "$1"
+        exec "$quickshell_bin" ipc -p "$dir" --any-display call app-switcher "$1"
         ;;
     *)
         printf 'Usage: serpantinum-app-switcher {start|next|prev|toggle|close|release|select}\n' >&2
