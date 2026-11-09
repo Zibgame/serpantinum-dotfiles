@@ -135,41 +135,49 @@ print(int(x), int(y), int(w), int(h))
     exit 0
 fi
 
-# Preserve the upper-half snap when moving left or right. A floating window
-# already snapped to the upper half (or either upper quarter) becomes an
-# upper-left/upper-right QUARTER instead of expanding to full monitor height.
-# Compare actual geometry, not a global flag, so the behavior is per-window.
-upper_half=0
+# Direction-aware snapping for floating windows:
+# top wide -> top-left/right quarter;
+# top-left + LEFT or top-right + RIGHT -> expand to full-height side half;
+# top-left + RIGHT or top-right + LEFT -> move to opposite upper quarter.
+# Detect the active window's current geometry, not a shared state.
+snap_state="other"
 if [[ "$mode" == "left" || "$mode" == "right" ]]; then
-    upper_half="$(hyprctl -j activewindow | python3 -c '
+    snap_state="$(hyprctl -j activewindow | python3 -c '
 import json, sys
-
 win = json.load(sys.stdin)
 mx, my, mw, mh = map(int, sys.argv[1:5])
 x, y = map(int, win.get("at") or (-10000, -10000))
 w, h = map(int, win.get("size") or (0, 0))
-
-# Allow a small tolerance for borders and rounding on scaled monitors.
 near = lambda a, b: abs(a - b) <= 12
-half_w = mw // 2
-half_h = mh // 2
-x_is_snap = near(x, mx) or near(x, mx + half_w)
-w_is_snap = any(near(w, value) for value in (mw, half_w, mw - half_w))
-print(int(near(y, my) and near(h, half_h) and x_is_snap and w_is_snap))
+half_w, half_h = mw // 2, mh // 2
+if near(y, my) and near(h, half_h):
+    if near(x, mx) and near(w, mw):
+        print("top")
+    elif near(x, mx) and near(w, half_w):
+        print("top-left")
+    elif near(x, mx + half_w) and near(w, mw - half_w):
+        print("top-right")
+    else:
+        print("other")
+else:
+    print("other")
 ' "$mx" "$my" "$mw" "$mh")"
 fi
 
 case "$mode" in
     left)
         x=$mx; y=$my; w=$((mw / 2)); h=$mh
-        # When coming from Super+Up, keep the upper half's height.
-        if [[ "$upper_half" == "1" ]]; then
+        # Top-wide or opposite upper quarter -> small upper-left quarter.
+        # Already top-left -> expand into the full-height left half.
+        if [[ "$snap_state" == "top" || "$snap_state" == "top-right" ]]; then
             h=$((mh / 2))
         fi
         ;;
     right)
-        x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
-        if [[ "$upper_half" == "1" ]]; then
+        x=$((mx + mw / 2)); y=$my; w=$((mw - mw / 2)); h=$mh
+        # Top-wide or opposite upper quarter -> small upper-right quarter.
+        # Already top-right -> expand into the full-height right half.
+        if [[ "$snap_state" == "top" || "$snap_state" == "top-left" ]]; then
             h=$((mh / 2))
         fi
         ;;

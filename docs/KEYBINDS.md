@@ -39,10 +39,11 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | `Super+RMB drag` | Resize window |
 
 `Super+Left`, `Super+Right` and `Super+Up` use the available monitor work area below the
-Serpantinum top bar, while keeping all windows floating. If a window already
-occupies the upper half or an upper quarter, pressing `Super+Left` or
-`Super+Right` places it in the matching **upper quarter** without extending
-it to the bottom of the screen. The fallback top bar height is 32px if
+Serpantinum top bar, while keeping all windows floating. From the full-width **upper half**, `Super+Left` and `Super+Right`
+produce the corresponding **upper quarter**. In the **upper-right quarter**,
+`Super+Right` expands to the full-height right half, while `Super+Left`
+moves to the upper-left quarter. The reverse applies in the upper-left
+quarter: `Super+Left` expands and `Super+Right` moves to the other quarter. The fallback top bar height is 32px if
 Hyprland has not reserved the panel; override it with
 `SERPANTINUM_TOP_BAR_HEIGHT` if your bar size differs.
 
