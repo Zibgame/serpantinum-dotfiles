@@ -148,16 +148,18 @@ run_module() {
     source "$module"
 }
 
-# Startup is defined in the versioned Lua config, not injected with sed.
-# This avoids editing a git-tracked file during each installation.
+# The systemd user watcher waits for an active Hyprland session and
+# launches the shell through hyprctl eval (works from SSH on VirtualBox).
 ensure_serpantinum_autostart() {
     is_upstream_installed || return 0
-    local config="$SERP_ROOT/config/hypr/serpantinum-appearance.lua"
-    grep -Fq 'serpantinum-shell' "$config" || \
-        die "Autostart Serpantinum absent dans $config"
     [[ -x "$HOME/.local/bin/serpantinum-shell" ]] || \
         die "Lanceur Serpantinum introuvable dans ~/.local/bin"
-    log_ok "Autostart Serpantinum configure (backend logiciel sur VirtualBox)"
+    [[ -x "$HOME/.local/bin/serpantinum-autostart" ]] || \
+        die "Lanceur d'autostart introuvable dans ~/.local/bin"
+    if ! systemctl --user is-enabled --quiet serpantinum-dotfiles-autostart.service; then
+        die "Service d'autostart non active: systemctl --user status serpantinum-dotfiles-autostart.service"
+    fi
+    log_ok "Autostart via systemd utilisateur, apres connexion Hyprland"
 }
 
 # Keep the upstream CLI as `serpantinum` and the dotfiles CLI as

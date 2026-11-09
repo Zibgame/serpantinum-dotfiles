@@ -1,0 +1,12 @@
+[Unit]
+Description=Start Serpantinum when Hyprland becomes available
+Documentation=https://github.com/Zibgame/serpantinum-dotfiles
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/serpantinum-autostart
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

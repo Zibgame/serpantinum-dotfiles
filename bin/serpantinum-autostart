@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# User-session watcher: start Serpantinum after Hyprland is ready.
+# Exact launch path verified on VirtualBox:
+# hyprctl --instance 0 eval 'hl.exec_cmd(".../serpantinum-shell")'
+set -euo pipefail
+
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+launcher="$HOME/.local/bin/serpantinum-shell"
+last_instance=""
+attempts=0
+started=0
+
+log() {
+    printf '[%s] %s\n' "$(date -Is)" "$*"
+}
+
+log "Serpantinum autostart watcher active"
+
+while true; do
+    # hyprctl instances is accessible from SSH without graphical env vars.
+    instances="$(hyprctl instances 2>/dev/null || true)"
+    instance="$(printf '%s\n' "$instances" | awk '/^instance / {gsub(/:/, "", $2); print $2; exit}')"
+    socket="$(printf '%s\n' "$instances" | awk '/wl socket:/ {print $3; exit}')"
+
+    if [[ -z "$instance" || -z "$socket" || ! -S "$XDG_RUNTIME_DIR/$socket" ]]; then
+        last_instance=""
+        sleep 2
+        continue
+    fi
+
+    if [[ "$instance" != "$last_instance" ]]; then
+        last_instance="$instance"
+        attempts=0
+        started=0
+        log "Session Hyprland detectee: $instance ($socket)"
+        # Give SDDM/Hyprland time to complete the graphical login.
+        sleep 3
+    fi
+
+    # Do not spawn a second shell if it was already started manually.
+    if pgrep -u "$(id -u)" -x quickshell >/dev/null 2>&1; then
+        if (( ! started )); then
+            log "Quickshell deja actif, aucun lancement supplementaire"
+        fi
+        started=1
+    fi
+
+    if (( ! started && attempts < 3 )); then
+        attempts=$((attempts + 1))
+        log "Tentative $attempts: lancement via hyprctl eval"
+        if [[ -x "$launcher" ]] &&
+           hyprctl --instance 0 eval "hl.exec_cmd(\"$launcher\")"; then
+            sleep 3
+            if pgrep -u "$(id -u)" -x quickshell >/dev/null 2>&1; then
+                log "Serpantinum demarre"
+                started=1
+            else
+                log "Quickshell absent apres lancement"
+            fi
+        else
+            log "Commande hyprctl eval en echec"
+        fi
+    fi
+
+    sleep 2
+done
