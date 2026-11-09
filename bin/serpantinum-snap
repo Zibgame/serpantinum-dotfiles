@@ -63,12 +63,37 @@ PY
     exit 0
 fi
 
+# Use the monitor's actual work area, not its full resolution.
+# Hyprland reports reserved edges as [left, top, right, bottom] (layer-shell
+# panels/docks). In VirtualBox/Quickshell the top bar can be visible before
+# its reservation reaches Hyprland; preserve a 32px fallback in that case.
+# Set SERPANTINUM_TOP_BAR_HEIGHT to override the fallback if bar size changes.
+bar_running=0
+if pgrep -u "$(id -u)" -x quickshell >/dev/null 2>&1; then
+    bar_running=1
+fi
 read -r mx my mw mh <<<"$(hyprctl -j monitors | python3 -c '
-import json, sys
-mons = json.load(sys.stdin)
-m = next((x for x in mons if x.get("focused")), mons[0])
-print(m["x"], m["y"], m["width"], m["height"])
-')"
+import json, os, sys
+
+monitors = json.load(sys.stdin)
+if not monitors:
+    sys.exit("No active monitor")
+m = next((item for item in monitors if item.get("focused")), monitors[0])
+reserved = m.get("reserved") or [0, 0, 0, 0]
+left, top, right, bottom = (int(value) for value in reserved)
+if sys.argv[1] == "1":
+    bar_height = max(0, int(os.environ.get("SERPANTINUM_TOP_BAR_HEIGHT", "32")))
+    top = max(top, bar_height)
+
+scale = float(m.get("scale") or 1)
+width = int(m["width"] / scale)
+height = int(m["height"] / scale)
+x = int(m["x"]) + left
+y = int(m["y"]) + top
+w = max(1, width - left - right)
+h = max(1, height - top - bottom)
+print(x, y, w, h)
+' "$bar_running")"
 
 case "$mode" in
     left)

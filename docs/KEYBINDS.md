@@ -34,6 +34,11 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | `Super+F` | Toggle fullscreen |
 | `Super+Shift+Left` | Move window to the monitor on the left |
 | `Super+Shift+Right` | Move window to the monitor on the right |
+
+`Super+Left` and `Super+Right` use the available monitor work area below the
+Serpantinum top bar, while keeping all windows floating. The fallback top bar
+height is 32px if Hyprland has not reserved the panel; override it with
+`SERPANTINUM_TOP_BAR_HEIGHT` if your bar size differs.
 | `Super+LMB drag` | Move window |
 | `Super+RMB drag` | Resize window |
 
