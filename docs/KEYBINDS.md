@@ -27,7 +27,7 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | `Super+Left` | Snap to the left half |
 | `Super+Right` | Snap to the right half |
 | `Super+Up` | Maximize |
-| `Super+Down` | Restore if maximized, otherwise minimize |
+| `Super+Down` | Restore and keep the window inside the visible work area; otherwise minimize |
 | `Super+H` | Minimize (hidden `special:minimized` workspace) |
 | `Super+Shift+H` | Restore all minimized windows |
 | `Super+V` | Toggle floating |

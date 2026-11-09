@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 # Serpantinum — Ubuntu-like window snapping for floating windows.
 #
-# Usage: serpantinum-snap left|right|max|center|monitor-left|monitor-right
+# Usage: serpantinum-snap left|right|max|center|ensure-visible|monitor-left|monitor-right
 set -euo pipefail
 
 mode="${1:-}"
 case "$mode" in
-    left|right|max|center|monitor-left|monitor-right) ;;
+    left|right|max|center|ensure-visible|monitor-left|monitor-right) ;;
     *)
-        echo "usage: serpantinum-snap left|right|max|center|monitor-left|monitor-right" >&2
+        echo "usage: serpantinum-snap left|right|max|center|ensure-visible|monitor-left|monitor-right" >&2
         exit 2
         ;;
 esac
 
 command -v hyprctl >/dev/null 2>&1 || exit 0
+
+# Give Hyprland a moment to finish restoring the floating geometry.
+if [[ "$mode" == "ensure-visible" ]]; then
+    sleep 0.2
+fi
 
 addr="$(hyprctl -j activewindow | python3 -c 'import json,sys; print(json.load(sys.stdin).get("address",""))')"
 [[ -n "$addr" ]] || exit 0
@@ -94,6 +99,41 @@ w = max(1, width - left - right)
 h = max(1, height - top - bottom)
 print(x, y, w, h)
 ' "$bar_running")"
+
+# On Super+Down, Hyprland restores the previous floating geometry.
+# If it overlaps the bar or extends beyond the work area, clamp only the
+# overflowing edges. Otherwise leave the window size and position unchanged.
+if [[ "$mode" == "ensure-visible" ]]; then
+    read -r wx wy ww wh <<<"$(hyprctl -j activewindow | python3 -c '
+import json, sys
+window = json.load(sys.stdin)
+x, y = window.get("at") or (0, 0)
+w, h = window.get("size") or (1, 1)
+print(int(x), int(y), int(w), int(h))
+')"
+
+    w=$ww
+    h=$wh
+    (( w > mw )) && w=$mw
+    (( h > mh )) && h=$mh
+    (( w < 1 )) && w=1
+    (( h < 1 )) && h=1
+
+    x=$wx
+    y=$wy
+    (( x < mx )) && x=$mx
+    (( y < my )) && y=$my
+    (( x + w > mx + mw )) && x=$((mx + mw - w))
+    (( y + h > my + mh )) && y=$((my + mh - h))
+
+    if (( w != ww || h != wh )); then
+        hyprctl dispatch "hl.dsp.window.resize({ x = $w, y = $h, window = 'address:$addr' })" >/dev/null
+    fi
+    if (( x != wx || y != wy )); then
+        hyprctl dispatch "hl.dsp.window.move({ x = $x, y = $y, relative = false, window = 'address:$addr' })" >/dev/null
+    fi
+    exit 0
+fi
 
 case "$mode" in
     left)

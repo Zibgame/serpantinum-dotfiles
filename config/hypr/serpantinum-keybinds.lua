@@ -62,14 +62,16 @@ hl.bind(mod .. " + up", function()
 end)
 
 -- Super+Down: restore when maximized/fullscreen, otherwise minimize.
--- fs 1 (maximized) needs "unset" with mode 1; fs 2 needs a plain "unset".
+-- Clamp a restored floating window to the usable screen area below the bar.
 hl.bind(mod .. " + down", function()
     local w = hl.get_active_window()
     if not w then return end
     if w.fullscreen == 1 then
         hl.dispatch(hl.dsp.window.fullscreen({ action = "unset", mode = 1 }))
+        hl.dispatch(hl.dsp.exec_cmd("'" .. snap .. "' ensure-visible"))
     elseif w.fullscreen ~= 0 then
         hl.dispatch(hl.dsp.window.fullscreen({ action = "unset" }))
+        hl.dispatch(hl.dsp.exec_cmd("'" .. snap .. "' ensure-visible"))
     else
         minimize()
     end
