@@ -135,51 +135,12 @@ print(int(x), int(y), int(w), int(h))
     exit 0
 fi
 
-# Direction-aware snapping for floating windows:
-# top wide -> top-left/right quarter;
-# top-left + LEFT or top-right + RIGHT -> expand to full-height side half;
-# top-left + RIGHT or top-right + LEFT -> move to opposite upper quarter.
-# Detect the active window's current geometry, not a shared state.
-snap_state="other"
-if [[ "$mode" == "left" || "$mode" == "right" ]]; then
-    snap_state="$(hyprctl -j activewindow | python3 -c '
-import json, sys
-win = json.load(sys.stdin)
-mx, my, mw, mh = map(int, sys.argv[1:5])
-x, y = map(int, win.get("at") or (-10000, -10000))
-w, h = map(int, win.get("size") or (0, 0))
-near = lambda a, b: abs(a - b) <= 12
-half_w, half_h = mw // 2, mh // 2
-if near(y, my) and near(h, half_h):
-    if near(x, mx) and near(w, mw):
-        print("top")
-    elif near(x, mx) and near(w, half_w):
-        print("top-left")
-    elif near(x, mx + half_w) and near(w, mw - half_w):
-        print("top-right")
-    else:
-        print("other")
-else:
-    print("other")
-' "$mx" "$my" "$mw" "$mh")"
-fi
-
 case "$mode" in
     left)
         x=$mx; y=$my; w=$((mw / 2)); h=$mh
-        # Top-wide or opposite upper quarter -> small upper-left quarter.
-        # Already top-left -> expand into the full-height left half.
-        if [[ "$snap_state" == "top" || "$snap_state" == "top-right" ]]; then
-            h=$((mh / 2))
-        fi
         ;;
     right)
-        x=$((mx + mw / 2)); y=$my; w=$((mw - mw / 2)); h=$mh
-        # Top-wide or opposite upper quarter -> small upper-right quarter.
-        # Already top-right -> expand into the full-height right half.
-        if [[ "$snap_state" == "top" || "$snap_state" == "top-left" ]]; then
-            h=$((mh / 2))
-        fi
+        x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
         ;;
     top)
         # Upper half of the work area below the Serpantinum panel.
