@@ -5,7 +5,6 @@
 -- snapped/moved explicitly, like on Ubuntu.
 
 local home = os.getenv("HOME")
-local terminal = home .. "/.local/bin/serpantinum-terminal"
 local snap = home .. "/.local/bin/serpantinum-snap"
 local mod = "SUPER"
 
@@ -37,10 +36,7 @@ end
 ------------------------------------------------------------
 -- Launchers
 ------------------------------------------------------------
-hl.bind("CTRL + ALT + T", hl.dsp.exec_cmd(terminal))
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd(terminal))
--- Direct fallback in case kitty cannot start on a virtual graphics adapter.
-hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("foot"))
+-- Terminal shortcuts live in hyprland.lua, so they are always registered.
 hl.bind(mod .. " + D", hl.dsp.exec_cmd("wofi --show drun"))
 hl.bind(mod .. " + A", hl.dsp.exec_cmd("wofi --show drun"))
 

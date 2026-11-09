@@ -1,6 +1,6 @@
 # Keyboard shortcuts
 
-All shortcuts are defined in `config/hypr/serpantinum-keybinds.lua` and follow
+Terminal shortcuts are defined in `config/hypr/hyprland.lua`; other shortcuts are\ndefined in `config/hypr/serpantinum-keybinds.lua`. They follow
 Ubuntu's window-management conventions on a **floating** Hyprland desktop
 (no Tiling Shell, no automatic tiling).
 
@@ -8,9 +8,10 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Alt+T` | Terminal (`serpantinum-terminal`) |
-| `Super+Return` | Terminal (Kitty, avec repli vers foot en cas de plantage) |
-| `Super+Shift+Return` | Terminal de secours direct (foot) |
+| `Ctrl+Alt+T` | Terminal (Foot sous VirtualBox, Kitty ailleurs) |
+| `Super+Return` | Terminal (idem) |
+| `Super+T` | Terminal (raccourci alternatif) |
+| `Super+Shift+Return` | Terminal de secours direct (Foot) |
 | `Super+D` | Application launcher (wofi) |
 | `Super+A` | Application launcher (wofi) |
 

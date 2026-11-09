@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
-# Start kitty when possible; fall back to foot on Wayland/VirtualBox failures.
-# All failures are recorded so the real kitty issue can be diagnosed later.
+# Serpantinum terminal launcher.
+# VirtualBox: use Foot directly; Kitty's GPU backend can open and crash.
+# Other systems: prefer Kitty, fall back to Foot if Kitty fails.
+set -uo pipefail
 
 log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum"
 mkdir -p "$log_dir"
 log="$log_dir/kitty.log"
 
+is_virtualbox=0
 if command -v systemd-detect-virt >/dev/null 2>&1 &&
    [[ "$(systemd-detect-virt --vm 2>/dev/null || true)" == "oracle" ]]; then
-    # VirtualBox VMSVGA can fail hardware OpenGL initialization.
-    export LIBGL_ALWAYS_SOFTWARE=1
-    export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+    is_virtualbox=1
+elif [[ -r /sys/class/dmi/id/product_name ]] &&
+     grep -qi 'virtualbox' /sys/class/dmi/id/product_name; then
+    is_virtualbox=1
+fi
+
+if (( is_virtualbox )) && command -v foot >/dev/null 2>&1; then
+    exec foot "$@"
 fi
 
 if command -v kitty >/dev/null 2>&1; then
@@ -19,12 +27,12 @@ if command -v kitty >/dev/null 2>&1; then
     if (( status == 0 )); then
         exit 0
     fi
-    printf 'kitty a quitte avec le code %s (voir %s). Essai de foot.\n' "$status" "$log" >&2
+    printf 'Kitty a echoue (code %s). Log: %s. Repli vers Foot.\n' "$status" "$log" >&2
 fi
 
 if command -v foot >/dev/null 2>&1; then
     exec foot "$@"
 fi
 
-printf 'Aucun terminal disponible : kitty a echoue et foot est absent.\n' >&2
+printf 'Impossible d ouvrir un terminal: ni Kitty ni Foot disponibles.\n' >&2
 exit 1
