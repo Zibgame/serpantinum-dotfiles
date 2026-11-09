@@ -1,12 +1,30 @@
-#!/usr/bin/env sh
-# Serpantinum terminal launcher.
-#
-# kitty needs a working OpenGL stack. VirtualBox's VMSVGA adapter hands out
-# broken EGL buffers, so force Mesa's software renderer inside VirtualBox.
-# Real hardware keeps GPU acceleration.
-if command -v systemd-detect-virt >/dev/null 2>&1 \
-   && [ "$(systemd-detect-virt)" = "oracle" ]; then
+#!/usr/bin/env bash
+# Start kitty when possible; fall back to foot on Wayland/VirtualBox failures.
+# All failures are recorded so the real kitty issue can be diagnosed later.
+
+log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum"
+mkdir -p "$log_dir"
+log="$log_dir/kitty.log"
+
+if command -v systemd-detect-virt >/dev/null 2>&1 &&
+   [[ "$(systemd-detect-virt --vm 2>/dev/null || true)" == "oracle" ]]; then
+    # VirtualBox VMSVGA can fail hardware OpenGL initialization.
     export LIBGL_ALWAYS_SOFTWARE=1
+    export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 fi
 
-exec kitty "$@"
+if command -v kitty >/dev/null 2>&1; then
+    status=0
+    kitty "$@" 2>>"$log" || status=$?
+    if (( status == 0 )); then
+        exit 0
+    fi
+    printf 'kitty a quitte avec le code %s (voir %s). Essai de foot.\n' "$status" "$log" >&2
+fi
+
+if command -v foot >/dev/null 2>&1; then
+    exec foot "$@"
+fi
+
+printf 'Aucun terminal disponible : kitty a echoue et foot est absent.\n' >&2
+exit 1

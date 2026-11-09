@@ -4,6 +4,7 @@
 # Desktop / window management
 hyprland
 kitty
+foot
 swaybg
 wofi
 grim

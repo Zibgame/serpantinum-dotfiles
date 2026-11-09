@@ -39,6 +39,8 @@ end
 ------------------------------------------------------------
 hl.bind("CTRL + ALT + T", hl.dsp.exec_cmd(terminal))
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd(terminal))
+-- Direct fallback in case kitty cannot start on a virtual graphics adapter.
+hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("foot"))
 hl.bind(mod .. " + D", hl.dsp.exec_cmd("wofi --show drun"))
 hl.bind(mod .. " + A", hl.dsp.exec_cmd("wofi --show drun"))
 

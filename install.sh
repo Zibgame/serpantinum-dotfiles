@@ -148,33 +148,20 @@ run_module() {
     source "$module"
 }
 
-# The personal Hyprland config replaces the upstream config. Ensure that the
-# upstream shell still starts from the personal Hyprland Lua configuration.
-# Note: this edits the source file in the locally cloned dotfiles repository.
+# Startup is defined in the versioned Lua config, not injected with sed.
+# This avoids editing a git-tracked file during each installation.
 ensure_serpantinum_autostart() {
     is_upstream_installed || return 0
-
     local config="$SERP_ROOT/config/hypr/serpantinum-appearance.lua"
-    if [[ ! -f "$config" ]]; then
-        log_warn "Autostart non configure: $config introuvable"
-        return 0
-    fi
-    if grep -Fq 'serpantinumd start' "$config"; then
-        log_skip "autostart Serpantinum deja present"
-        return 0
-    fi
-    if ! grep -Fq 'hl.on("hyprland.start", function()' "$config"; then
-        log_warn "Bloc hyprland.start absent: autostart a configurer manuellement"
-        return 0
-    fi
-
-    backup_file "$config"
-    sed -i '/hl\.on("hyprland\.start", function()/a\    hl.exec_cmd("env QT_QPA_PLATFORM=wayland serpantinumd start")' "$config"
-    log_ok "Demarrage automatique ajoute dans la configuration Hyprland"
+    grep -Fq 'serpantinum-shell' "$config" || \
+        die "Autostart Serpantinum absent dans $config"
+    [[ -x "$HOME/.local/bin/serpantinum-shell" ]] || \
+        die "Lanceur Serpantinum introuvable dans ~/.local/bin"
+    log_ok "Autostart Serpantinum configure (backend logiciel sur VirtualBox)"
 }
 
-# The 40-hyprland module links the dotfiles command to `serpantinum`.
-# Restore the official CLI there, keeping our own CLI under another name.
+# Keep the upstream CLI as `serpantinum` and the dotfiles CLI as
+# `serpantinum-dotfiles` without overriding unrelated helper commands.
 configure_serpantinum_cli() {
     is_upstream_installed || return 0
     log_step "Commandes Serpantinum"

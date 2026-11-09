@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Start the official Serpantinum Quickshell inside the Hyprland Wayland session.
+# VirtualBox needs Qt Quick's software backend to avoid wl_surface.attach errors.
+set -euo pipefail
+
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export XDG_SESSION_TYPE=wayland
+export QT_QPA_PLATFORM=wayland
+
+# A terminal/SSH session may not inherit the compositor's environment.
+if [[ -z "${WAYLAND_DISPLAY:-}" || -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+    if command -v hyprctl >/dev/null 2>&1; then
+        instances="$(hyprctl instances 2>/dev/null || true)"
+        if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+            signature="$(printf '%s\n' "$instances" | awk '/^instance / {gsub(/:/, "", $2); print $2; exit}')"
+            [[ -z "$signature" ]] || export HYPRLAND_INSTANCE_SIGNATURE="$signature"
+        fi
+        if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+            socket="$(printf '%s\n' "$instances" | awk '/wl socket:/ {print $3; exit}')"
+            [[ -z "$socket" ]] || export WAYLAND_DISPLAY="$socket"
+        fi
+    fi
+fi
+
+if [[ -z "${WAYLAND_DISPLAY:-}" ]] ||
+   [[ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then
+    printf 'Serpantinum: aucun socket Wayland accessible.\n' >&2
+    exit 1
+fi
+
+# Only use the slow software backend inside VirtualBox; leave real GPUs alone.
+is_virtualbox=0
+if command -v systemd-detect-virt >/dev/null 2>&1 &&
+   [[ "$(systemd-detect-virt --vm 2>/dev/null || true)" == "oracle" ]]; then
+    is_virtualbox=1
+elif [[ -r /sys/class/dmi/id/product_name ]] &&
+     grep -qi 'virtualbox' /sys/class/dmi/id/product_name; then
+    is_virtualbox=1
+fi
+
+if (( is_virtualbox )); then
+    export QT_QUICK_BACKEND="${QT_QUICK_BACKEND:-software}"
+fi
+
+daemon="$HOME/.local/share/serpantinum/bin/serpantinumd"
+if [[ ! -x "$daemon" ]]; then
+    printf 'Serpantinum officiel absent: %s\n' "$daemon" >&2
+    exit 1
+fi
+
+exec "$daemon" start

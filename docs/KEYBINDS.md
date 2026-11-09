@@ -9,7 +9,8 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | Shortcut | Action |
 |---|---|
 | `Ctrl+Alt+T` | Terminal (`serpantinum-terminal`) |
-| `Super+Return` | Terminal (convenience) |
+| `Super+Return` | Terminal (Kitty, avec repli vers foot en cas de plantage) |
+| `Super+Shift+Return` | Terminal de secours direct (foot) |
 | `Super+D` | Application launcher (wofi) |
 | `Super+A` | Application launcher (wofi) |
 

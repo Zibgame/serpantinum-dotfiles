@@ -13,9 +13,12 @@ do
     link_config "$SERP_ROOT/config/hypr/$module" "$HYPR_CONFIG_DIR/$module"
 done
 
-for helper in serpantinum-terminal serpantinum-snap serpantinum; do
+for helper in serpantinum-terminal serpantinum-snap serpantinum-shell; do
     link_config "$SERP_ROOT/bin/$helper" "$HOME/.local/bin/$helper"
 done
+
+# Keep the personal management CLI separate from the official shell CLI.
+link_config "$SERP_ROOT/bin/serpantinum" "$HOME/.local/bin/serpantinum-dotfiles"
 
 chmod +x "$SERP_ROOT/bin/"*
 

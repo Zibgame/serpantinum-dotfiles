@@ -50,6 +50,9 @@ hl.config({
 })
 
 hl.on("hyprland.start", function()
+    -- Spawn from Hyprland so the compositor provides its Wayland environment.
+    -- The wrapper enables Qt Quick software rendering only in VirtualBox.
+    hl.exec_cmd(home .. "/.local/bin/serpantinum-shell")
     hl.exec_cmd("swaybg -i '" .. wallpaper .. "' -m fill")
     hl.exec_cmd("xdg-user-dirs-update")
     -- VirtualBox guests: clipboard sharing between host and guest.
