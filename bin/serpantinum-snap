@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Serpantinum — Ubuntu-like window snapping for floating windows.
 #
-# Usage: serpantinum-snap left|right|max|center|ensure-visible|monitor-left|monitor-right
+# Usage: serpantinum-snap left|right|top|max|center|ensure-visible|monitor-left|monitor-right
 set -euo pipefail
 
 mode="${1:-}"
 case "$mode" in
-    left|right|max|center|ensure-visible|monitor-left|monitor-right) ;;
+    left|right|top|max|center|ensure-visible|monitor-left|monitor-right) ;;
     *)
-        echo "usage: serpantinum-snap left|right|max|center|ensure-visible|monitor-left|monitor-right" >&2
+        echo "usage: serpantinum-snap left|right|top|max|center|ensure-visible|monitor-left|monitor-right" >&2
         exit 2
         ;;
 esac
@@ -141,6 +141,10 @@ case "$mode" in
         ;;
     right)
         x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
+        ;;
+    top)
+        # Upper half of the work area below the Serpantinum panel.
+        x=$mx; y=$my; w=$mw; h=$((mh / 2))
         ;;
     max)
         x=$mx; y=$my; w=$mw; h=$mh

@@ -54,12 +54,10 @@ hl.bind("ALT + SHIFT + Tab", hl.dsp.window.cycle_next({ next = false }))
 hl.bind(mod .. " + left", hl.dsp.exec_cmd("'" .. snap .. "' left"))
 hl.bind(mod .. " + right", hl.dsp.exec_cmd("'" .. snap .. "' right"))
 
--- Super+Up: maximize (fills the work area, keeps decorations)
-hl.bind(mod .. " + up", function()
-    local w = hl.get_active_window()
-    if not w then return end
-    hl.dispatch(hl.dsp.window.fullscreen({ action = "set", mode = 1 }))
-end)
+-- Super+Up: snap the active floating window to the upper half of the screen.
+-- serpantinum-snap restores maximized windows before resizing and respects
+-- the Serpantinum top bar (the desktop stays in floating mode).
+hl.bind(mod .. " + up", hl.dsp.exec_cmd("'" .. snap .. "' top"))
 
 -- Super+Down only RESTORES a maximized/fullscreen window.
 -- For an ordinary floating window, do nothing: never hide or close it.
