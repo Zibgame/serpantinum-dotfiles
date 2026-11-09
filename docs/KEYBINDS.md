@@ -1,6 +1,7 @@
 # Keyboard shortcuts
 
-Terminal shortcuts are defined in `config/hypr/hyprland.lua`; other shortcuts are\ndefined in `config/hypr/serpantinum-keybinds.lua`. They follow
+Terminal shortcuts are defined in `config/hypr/hyprland.lua`; other shortcuts are
+defined in `config/hypr/serpantinum-keybinds.lua`. They follow
 Ubuntu's window-management conventions on a **floating** Hyprland desktop
 (no Tiling Shell, no automatic tiling).
 
