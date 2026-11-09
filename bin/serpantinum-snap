@@ -163,11 +163,15 @@ case "$mode" in
     left)
         x=$mx; y=$my; w=$((mw / 2)); h=$mh
         # When coming from Super+Up, keep the upper half's height.
-        [[ "$upper_half" == "1" ]] && h=$((mh / 2))
+        if [[ "$upper_half" == "1" ]]; then
+            h=$((mh / 2))
+        fi
         ;;
     right)
         x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
-        [[ "$upper_half" == "1" ]] && h=$((mh / 2))
+        if [[ "$upper_half" == "1" ]]; then
+            h=$((mh / 2))
+        fi
         ;;
     top)
         # Upper half of the work area below the Serpantinum panel.
