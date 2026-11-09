@@ -143,9 +143,9 @@ case "$mode" in
         x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
         ;;
     top)
-        # First Super+Up: upper half; second: use the entire work area.
-        # Detect window geometry rather than tracking a global state, so the
-        # shortcut keeps working for each independent floating window.
+        # Super+Up: normal window -> upper half; upper half or either
+        # full-height side snap -> expand to the complete work area.
+        # Detect per-window geometry; do not alter left/right shortcuts.
         top_state="$(hyprctl -j activewindow | python3 -c '
 import json, sys
 window = json.load(sys.stdin)
@@ -154,15 +154,24 @@ x, y = map(int, window.get("at") or (-10000, -10000))
 w, h = map(int, window.get("size") or (0, 0))
 near = lambda a, b: abs(a - b) <= 16
 aligned = near(x, mx) and near(y, my) and near(w, mw)
+half_w = mw // 2
 if aligned and near(h, mh // 2):
     print("top-half")
 elif aligned and near(h, mh):
     print("full")
+elif near(y, my) and near(h, mh):
+    if near(x, mx) and near(w, half_w):
+        print("full-left")
+    elif near(x, mx + half_w) and near(w, mw - half_w):
+        print("full-right")
+    else:
+        print("other")
 else:
     print("other")
 ' "$mx" "$my" "$mw" "$mh")"
         x=$mx; y=$my; w=$mw
-        if [[ "$top_state" == "top-half" || "$top_state" == "full" ]]; then
+        if [[ "$top_state" == "top-half" || "$top_state" == "full" ||
+              "$top_state" == "full-left" || "$top_state" == "full-right" ]]; then
             h=$mh
         else
             h=$((mh / 2))
