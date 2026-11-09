@@ -45,6 +45,7 @@ Options:
   --no-upstream    Skip official Serpantinum installation.
   --no-shell       Do not change the login shell to Zsh.
   --no-vim         Skip Vim plugin installation.
+  --app-switcher-only  Install/refresh Hypr App Switcher, keybinds and autostart only.
 HELP
 }
 
@@ -53,6 +54,7 @@ parse_args() {
     SERP_SKIP_UPSTREAM=0
     SERP_SKIP_SHELL=0
     SERP_SKIP_VIM=0
+    SERP_ONLY_APP_SWITCHER=0
 
     local arg
     for arg in "$@"; do
@@ -63,6 +65,7 @@ parse_args() {
             --no-upstream)   SERP_SKIP_UPSTREAM=1 ;;
             --no-shell)      SERP_SKIP_SHELL=1 ;;
             --no-vim)        SERP_SKIP_VIM=1 ;;
+            --app-switcher-only) SERP_ONLY_APP_SWITCHER=1 ;;
             *)               die "Option inconnue: $arg (voir --help)" ;;
         esac
     done
@@ -205,6 +208,17 @@ main() {
     banner
     detect_environment
     mkdir -p "$SERP_STATE_DIR/backups" "$SERP_DATA_DIR/wallpapers" "$SERP_CONFIG_DIR"
+
+    # Install only the visual Alt+Tab, leaving the current wallpaper untouched.
+    if [[ "$SERP_ONLY_APP_SWITCHER" -eq 1 ]]; then
+        run_module "$SERP_ROOT/modules/35-hypr-app-switcher.sh"
+        local switcher_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
+        [[ -f "$switcher_dir/shell.qml" ]] || die "Hypr App Switcher n\x27a pas ete installe"
+        run_module "$SERP_ROOT/modules/40-hyprland.sh"
+        run_module "$SERP_ROOT/modules/45-autostart.sh"
+        log_ok "Hypr App Switcher configure : ALT+TAB / ALT+SHIFT+TAB"
+        return 0
+    fi
 
     if is_installed; then
         log_step "Verification / mise a jour des dotfiles"
