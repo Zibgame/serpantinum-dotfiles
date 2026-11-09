@@ -3,30 +3,49 @@
 # VirtualBox needs Qt Quick's software backend to avoid wl_surface.attach errors.
 set -euo pipefail
 
+# Keep a startup trace for cases where Hyprland starts the shell too early.
+# Direct terminal use remains interactive and displays logs normally.
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum"
+mkdir -p "$state_dir"
+if [[ ! -t 1 ]]; then
+    exec >>"$state_dir/shell-autostart.log" 2>&1
+fi
+printf '[%s] Starting Serpantinum shell wrapper\n' "$(date -Is)"
+
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export XDG_SESSION_TYPE=wayland
 export QT_QPA_PLATFORM=wayland
 
-# A terminal/SSH session may not inherit the compositor's environment.
-if [[ -z "${WAYLAND_DISPLAY:-}" || -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+# Hyprland's start event may fire before its socket is ready (VirtualBox).
+# Poll rather than exiting and leaving a black desktop.
+ready=0
+for (( attempt=1; attempt<=60; attempt++ )); do
     if command -v hyprctl >/dev/null 2>&1; then
         instances="$(hyprctl instances 2>/dev/null || true)"
-        if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
-            signature="$(printf '%s\n' "$instances" | awk '/^instance / {gsub(/:/, "", $2); print $2; exit}')"
-            [[ -z "$signature" ]] || export HYPRLAND_INSTANCE_SIGNATURE="$signature"
-        fi
-        if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
-            socket="$(printf '%s\n' "$instances" | awk '/wl socket:/ {print $3; exit}')"
-            [[ -z "$socket" ]] || export WAYLAND_DISPLAY="$socket"
-        fi
+        signature="$(printf '%s\n' "$instances" | awk '/^instance / {gsub(/:/, "", $2); print $2; exit}')"
+        socket="$(printf '%s\n' "$instances" | awk '/wl socket:/ {print $3; exit}')"
+        [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -n "$signature" ]] &&
+            export HYPRLAND_INSTANCE_SIGNATURE="$signature"
+        [[ -z "${WAYLAND_DISPLAY:-}" && -n "$socket" ]] &&
+            export WAYLAND_DISPLAY="$socket"
     fi
-fi
 
-if [[ -z "${WAYLAND_DISPLAY:-}" ]] ||
-   [[ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then
-    printf 'Serpantinum: aucun socket Wayland accessible.\n' >&2
+    if [[ -n "${WAYLAND_DISPLAY:-}" ]] &&
+       [[ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then
+        ready=1
+        break
+    fi
+    sleep 0.5
+done
+
+if (( ! ready )); then
+    printf 'Serpantinum: socket Wayland indisponible apres 30 secondes.\n' >&2
     exit 1
 fi
+
+# Let the compositor finish initializing its graphical services.
+sleep 1
+printf '[%s] Wayland ready: %s\n' "$(date -Is)" "$WAYLAND_DISPLAY"
 
 # Only use the slow software backend inside VirtualBox; leave real GPUs alone.
 is_virtualbox=0
