@@ -213,7 +213,7 @@ main() {
     if [[ "$SERP_ONLY_APP_SWITCHER" -eq 1 ]]; then
         run_module "$SERP_ROOT/modules/35-hypr-app-switcher.sh"
         local switcher_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
-        [[ -f "$switcher_dir/shell.qml" ]] || die "Hypr App Switcher n\x27a pas ete installe"
+        [[ -f "$switcher_dir/shell.qml" ]] || die "Hypr App Switcher n'a pas ete installe"
         run_module "$SERP_ROOT/modules/40-hyprland.sh"
         run_module "$SERP_ROOT/modules/45-autostart.sh"
         log_ok "Hypr App Switcher configure : ALT+TAB / ALT+SHIFT+TAB"
