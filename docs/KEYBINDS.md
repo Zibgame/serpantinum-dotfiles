@@ -26,7 +26,7 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | `Super+Q` | Close window (convenience) |
 | `Super+Left` | Snap to the left half |
 | `Super+Right` | Snap to the right half |
-| `Super+Up` | Snap floating window to the upper half, below the top bar |
+| `Super+Up` | First press: upper half; second press: full work area below the top bar |
 | `Super+Down` | Restore maximized/fullscreen window; otherwise do nothing (never minimize or close) |
 | `Super+H` | Minimize (hidden `special:minimized` workspace) |
 | `Super+Shift+H` | Restore all minimized windows |

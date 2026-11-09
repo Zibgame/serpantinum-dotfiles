@@ -143,8 +143,30 @@ case "$mode" in
         x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
         ;;
     top)
-        # Upper half of the work area below the Serpantinum panel.
-        x=$mx; y=$my; w=$mw; h=$((mh / 2))
+        # First Super+Up: upper half; second: use the entire work area.
+        # Detect window geometry rather than tracking a global state, so the
+        # shortcut keeps working for each independent floating window.
+        top_state="$(hyprctl -j activewindow | python3 -c '
+import json, sys
+window = json.load(sys.stdin)
+mx, my, mw, mh = map(int, sys.argv[1:5])
+x, y = map(int, window.get("at") or (-10000, -10000))
+w, h = map(int, window.get("size") or (0, 0))
+near = lambda a, b: abs(a - b) <= 16
+aligned = near(x, mx) and near(y, my) and near(w, mw)
+if aligned and near(h, mh // 2):
+    print("top-half")
+elif aligned and near(h, mh):
+    print("full")
+else:
+    print("other")
+' "$mx" "$my" "$mw" "$mh")"
+        x=$mx; y=$my; w=$mw
+        if [[ "$top_state" == "top-half" || "$top_state" == "full" ]]; then
+            h=$mh
+        else
+            h=$((mh / 2))
+        fi
         ;;
     max)
         x=$mx; y=$my; w=$mw; h=$mh
