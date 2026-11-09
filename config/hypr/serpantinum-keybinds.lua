@@ -37,8 +37,7 @@ end
 -- Launchers
 ------------------------------------------------------------
 -- Terminal shortcuts live in hyprland.lua, so they are always registered.
-hl.bind(mod .. " + D", hl.dsp.exec_cmd("wofi --show drun"))
-hl.bind(mod .. " + A", hl.dsp.exec_cmd("wofi --show drun"))
+hl.bind("Super_L", hl.dsp.exec_cmd("serpantinum msg toggle launcher"), { release = true })
 
 ------------------------------------------------------------
 -- Close / focus
