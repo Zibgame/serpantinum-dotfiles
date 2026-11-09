@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# Serpantinum terminal launcher.
+#
+# kitty needs a working OpenGL stack. VirtualBox's VMSVGA adapter hands out
+# broken EGL buffers, so force Mesa's software renderer inside VirtualBox.
+# Real hardware keeps GPU acceleration.
+if command -v systemd-detect-virt >/dev/null 2>&1 \
+   && [ "$(systemd-detect-virt)" = "oracle" ]; then
+    export LIBGL_ALWAYS_SOFTWARE=1
+fi
+
+exec kitty "$@"

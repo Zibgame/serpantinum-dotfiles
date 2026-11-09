@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Serpantinum — Ubuntu-like window snapping for floating windows.
+#
+# Usage: serpantinum-snap left|right|max|center|monitor-left|monitor-right
+set -euo pipefail
+
+mode="${1:-}"
+case "$mode" in
+    left|right|max|center|monitor-left|monitor-right) ;;
+    *)
+        echo "usage: serpantinum-snap left|right|max|center|monitor-left|monitor-right" >&2
+        exit 2
+        ;;
+esac
+
+command -v hyprctl >/dev/null 2>&1 || exit 0
+
+addr="$(hyprctl -j activewindow | python3 -c 'import json,sys; print(json.load(sys.stdin).get("address",""))')"
+[[ -n "$addr" ]] || exit 0
+
+# A maximized/fullscreen window refuses move/resize: restore it first.
+# The fullscreen dispatcher only acts on the active window (no window selector).
+#   fs 1 = maximized  -> unset with mode 1
+#   fs 2 = fullscreen -> plain unset
+#   fs 3 = both       -> both
+fullscreen="$(hyprctl -j activewindow | python3 -c 'import json,sys; print(json.load(sys.stdin).get("fullscreen",0))')"
+case "${fullscreen:-0}" in
+    1) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null; sleep 0.3 ;;
+    2) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null; sleep 0.3 ;;
+    3) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null
+       hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null
+       sleep 0.3 ;;
+esac
+
+if [[ "$mode" == monitor-* ]]; then
+    direction="${mode#monitor-}"
+    target="$(hyprctl -j monitors | python3 - "$direction" <<'PY'
+import json, sys
+direction = sys.argv[1]
+mons = json.load(sys.stdin)
+current = next((m for m in mons if m.get("focused")), None)
+if current is None or len(mons) < 2:
+    print("")
+    raise SystemExit
+cx = current["x"]
+candidates = []
+for m in mons:
+    if m is current:
+        continue
+    if direction == "right" and m["x"] > cx:
+        candidates.append(m)
+    elif direction == "left" and m["x"] < cx:
+        candidates.append(m)
+if not candidates:
+    print("")
+    raise SystemExit
+pick = min(candidates, key=lambda m: abs(m["x"] - cx))
+print(pick["name"])
+PY
+)"
+    [[ -n "$target" ]] || exit 0
+    hyprctl dispatch "hl.dsp.window.move({ monitor = '$target', window = 'address:$addr' })" >/dev/null
+    exit 0
+fi
+
+read -r mx my mw mh <<<"$(hyprctl -j monitors | python3 -c '
+import json, sys
+mons = json.load(sys.stdin)
+m = next((x for x in mons if x.get("focused")), mons[0])
+print(m["x"], m["y"], m["width"], m["height"])
+')"
+
+case "$mode" in
+    left)
+        x=$mx; y=$my; w=$((mw / 2)); h=$mh
+        ;;
+    right)
+        x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
+        ;;
+    max)
+        x=$mx; y=$my; w=$mw; h=$mh
+        ;;
+    center)
+        w=$((mw * 3 / 5)); h=$((mh * 3 / 4))
+        x=$((mx + (mw - w) / 2)); y=$((my + (mh - h) / 2))
+        ;;
+esac
+
+# Resize first, then move: resizing can shift the window slightly.
+hyprctl dispatch "hl.dsp.window.resize({ x = $w, y = $h, window = 'address:$addr' })" >/dev/null
+hyprctl dispatch "hl.dsp.window.move({ x = $x, y = $y, relative = false, window = 'address:$addr' })" >/dev/null

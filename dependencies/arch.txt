@@ -1,0 +1,28 @@
+# Serpantinum — Arch Linux dependencies (pacman)
+# One package per line. Lines starting with # are ignored.
+
+# Desktop / window management
+hyprland
+kitty
+swaybg
+wofi
+grim
+slurp
+wl-clipboard
+xdg-desktop-portal-hyprland
+
+# Shell
+zsh
+git
+curl
+
+# Editor
+vim
+
+# Helpers
+python
+xdg-user-dirs
+
+# Fonts (prompt icons/emoji + Nerd Fonts used by vim-devicons)
+ttf-nerd-fonts-symbols
+noto-fonts-emoji

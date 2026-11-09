@@ -1,0 +1,5 @@
+# Serpantinum — local state
+*.log
+*.swp
+*.swo
+.DS_Store
