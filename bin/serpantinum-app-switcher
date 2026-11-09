@@ -22,10 +22,13 @@ fi
 
 case "${1:-}" in
     start)
-        exec "$quickshell_bin" -p "$dir"
+        # Write a persistent crash/startup trace: useful when launched from Hyprland.
+        log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum"
+        mkdir -p "$log_dir"
+        exec "$quickshell_bin" -p "$dir" >"$log_dir/app-switcher.log" 2>&1
         ;;
     next|prev|toggle|close|release|select)
-        exec "$quickshell_bin" -p "$dir" ipc call app-switcher "$1"
+        exec "$quickshell_bin" -p "$dir" --any-display ipc call app-switcher "$1"
         ;;
     *)
         printf 'Usage: serpantinum-app-switcher {start|next|prev|toggle|close|release|select}\n' >&2
