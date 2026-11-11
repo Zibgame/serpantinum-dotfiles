@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Serpantinum Dotfiles — Arch Linux / Hyprland / Zsh / Vim
+# Serpantinum Dotfiles — Hyprland / Zsh / Vim
 # =============================================================================
 # Usage:
 #   git clone git@github.com:Zibgame/serpantinum-dotfiles.git
@@ -41,11 +41,17 @@ Usage: ./install.sh [options]
 Options:
   -h, --help       Show this help.
   --status         Show current installation status.
-  --no-packages    Skip Arch package installation and upstream install.
+  --no-packages    Skip package installation and upstream install.
   --no-upstream    Skip official Serpantinum installation.
   --no-shell       Do not change the login shell to Zsh.
   --no-vim         Skip Vim plugin installation.
-  --app-switcher-only  Install/refresh Hypr App Switcher, keybinds and autostart only.
+
+Supported distributions (package manager detected automatically):
+  Arch family : Arch, BlackArch, EndeavourOS, Manjaro, CachyOS, Garuda, Artix
+  Debian      : Debian, Ubuntu, Kali, Parrot, Mint, Pop!_OS
+  Fedora      : Fedora, Nobara, RHEL, CentOS Stream, Rocky, Alma
+  SUSE        : openSUSE Leap, openSUSE Tumbleweed
+  Other       : dotfiles only (packages skipped).
 HELP
 }
 
@@ -151,22 +157,37 @@ run_module() {
     source "$module"
 }
 
-# The systemd user watcher waits for an active Hyprland session and
-# launches the shell through hyprctl eval (works from SSH on VirtualBox).
+# The robust launcher ~/.local/bin/serpantinum-autostart.sh (linked by the
+# Hyprland module) starts the shell from serpantinum-appearance.lua and works
+# even without the Hyprland/Wayland environment variables. The systemd user
+# watcher (module 45) is the fallback for sessions where exec-once failed.
 ensure_serpantinum_autostart() {
+    local config="$SERP_ROOT/config/hypr/serpantinum-appearance.lua"
+    local script="$HOME/.local/bin/serpantinum-autostart.sh"
+
+    if [[ ! -e "$script" ]]; then
+        log_warn "autostart absent: $script — relance ./install.sh pour recree les liens"
+        return 0
+    fi
+
+    if ! grep -Fq 'serpantinum-autostart.sh' "$config"; then
+        log_warn "autostart non branche dans $config — relance ./install.sh"
+        return 0
+    fi
+
+    log_ok "autostart Serpantinum branche: $script"
+
     is_upstream_installed || return 0
     [[ -x "$HOME/.local/bin/serpantinum-shell" ]] || \
         die "Lanceur Serpantinum introuvable dans ~/.local/bin"
-    [[ -x "$HOME/.local/bin/serpantinum-autostart" ]] || \
-        die "Lanceur d'autostart introuvable dans ~/.local/bin"
-    if ! systemctl --user is-enabled --quiet serpantinum-dotfiles-autostart.service; then
-        die "Service d'autostart non active: systemctl --user status serpantinum-dotfiles-autostart.service"
+    if command -v systemctl >/dev/null 2>&1 \
+        && ! systemctl --user is-enabled --quiet serpantinum-dotfiles-autostart.service; then
+        log_warn "watcher systemd inactif (secours autostart): systemctl --user status serpantinum-dotfiles-autostart.service"
     fi
-    log_ok "Autostart via systemd utilisateur, apres connexion Hyprland"
 }
 
-# Keep the upstream CLI as `serpantinum` and the dotfiles CLI as
-# `serpantinum-dotfiles` without overriding unrelated helper commands.
+# The 40-hyprland module links the dotfiles command to `serpantinum`.
+# Restore the official CLI there, keeping our own CLI under another name.
 configure_serpantinum_cli() {
     is_upstream_installed || return 0
     log_step "Commandes Serpantinum"
@@ -192,6 +213,7 @@ summary() {
         log_ok "Serpantinum Shell installe"
         log_info "CLI          : serpantinum"
         log_info "Dotfiles     : serpantinum-dotfiles status"
+        log_info "Autostart    : ~/.local/bin/serpantinum-autostart.sh"
     else
         log_info "Serpantinum officiel non detecte"
     fi
@@ -226,7 +248,7 @@ main() {
         log_step "Premiere installation des dotfiles"
     fi
 
-    # Stage 1: preparation, including the pacman dependencies.
+    # Stage 1: preparation, including the distribution dependencies.
     local module filename
     for module in "$SERP_ROOT"/modules/*.sh; do
         [[ -f "$module" ]] || continue

@@ -1,97 +1,41 @@
 #!/usr/bin/env bash
-# User-session watcher: start Serpantinum after Hyprland is ready.
-# Exact launch path verified on VirtualBox:
-# hyprctl --instance 0 eval 'hl.exec_cmd(".../serpantinum-shell")'
-set -euo pipefail
+# Serpantinum — lancement robuste du shell officiel.
+# Fonctionne depuis Hyprland (exec-once), depuis tty1 ou depuis un shell SSH :
+# il reconstruit lui-meme l'environnement Hyprland/Wayland manquant.
 
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-launcher="$HOME/.local/bin/serpantinum-shell"
-app_switcher_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
-switcher_launcher="$HOME/.local/bin/serpantinum-app-switcher"
-last_instance=""
-attempts=0
-started=0
-switcher_started=0
-switcher_attempts=0
+mkdir -p "$HOME/.local/bin"
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
 
-log() {
-    printf '[%s] %s\n' "$(date -Is)" "$*"
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+
+export HYPRLAND_INSTANCE_SIGNATURE="${HYPRLAND_INSTANCE_SIGNATURE:-$(
+    hyprctl instances |
+    awk '/^instance / {gsub(/:/, "", $2); print $2; exit}'
+)}"
+
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(
+    hyprctl instances |
+    awk '/wl socket:/ {print $3; exit}'
+)}"
+
+export XDG_SESSION_TYPE=wayland
+
+# Attendre que Wayland soit disponible
+for i in {1..30}; do
+    test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" && break
+    sleep 1
+done
+
+test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" || {
+    echo "ERREUR : session Wayland introuvable"
+    exit 1
 }
 
-log "Serpantinum autostart watcher active"
+# Lancer Serpantinum avec le rendu logiciel
+export QT_QPA_PLATFORM=wayland
+export QT_QUICK_BACKEND=software
 
-while true; do
-    # hyprctl instances is accessible from SSH without graphical env vars.
-    instances="$(hyprctl instances 2>/dev/null || true)"
-    instance="$(printf '%s\n' "$instances" | awk '/^instance / {gsub(/:/, "", $2); print $2; exit}')"
-    socket="$(printf '%s\n' "$instances" | awk '/wl socket:/ {print $3; exit}')"
-
-    if [[ -z "$instance" || -z "$socket" || ! -S "$XDG_RUNTIME_DIR/$socket" ]]; then
-        last_instance=""
-        sleep 2
-        continue
-    fi
-
-    if [[ "$instance" != "$last_instance" ]]; then
-        last_instance="$instance"
-        attempts=0
-        started=0
-        switcher_started=0
-        switcher_attempts=0
-        log "Session Hyprland detectee: $instance ($socket)"
-        # Give SDDM/Hyprland time to complete the graphical login.
-        sleep 3
-    fi
-
-    # Do not spawn a second shell if it was already started manually.
-    if pgrep -u "$(id -u)" -x quickshell >/dev/null 2>&1; then
-        if (( ! started )); then
-            log "Quickshell deja actif, aucun lancement supplementaire"
-        fi
-        started=1
-    fi
-
-    if (( ! started && attempts < 3 )); then
-        attempts=$((attempts + 1))
-        log "Tentative $attempts: lancement via hyprctl eval"
-        if [[ -x "$launcher" ]] &&
-           hyprctl --instance 0 eval "hl.exec_cmd(\"$launcher\")"; then
-            sleep 3
-            if pgrep -u "$(id -u)" -x quickshell >/dev/null 2>&1; then
-                log "Serpantinum demarre"
-                started=1
-            else
-                log "Quickshell absent apres lancement"
-            fi
-        else
-            log "Commande hyprctl eval en echec"
-        fi
-    fi
-
-    # Launch the visual Alt+Tab only after the main Serpantinum shell is ready.
-    # Launching it earlier would fool the generic Quickshell detection above.
-    if (( started && ! switcher_started )) &&
-       [[ -f "$app_switcher_dir/shell.qml" ]] &&
-       [[ -x "$switcher_launcher" ]]; then
-        if pgrep -u "$(id -u)" -f '(qs|quickshell).*hypr-app-switcher' >/dev/null 2>&1; then
-            log "Hypr App Switcher deja lance"
-            switcher_started=1
-        elif (( switcher_attempts < 3 )); then
-            switcher_attempts=$((switcher_attempts + 1))
-            log "Hypr App Switcher: lancement $switcher_attempts/3"
-            if hyprctl --instance 0 eval "hl.exec_cmd(\"$switcher_launcher start\")" >/dev/null 2>&1; then
-                sleep 1
-                if pgrep -u "$(id -u)" -f '(qs|quickshell).*hypr-app-switcher' >/dev/null 2>&1; then
-                    switcher_started=1
-                    log "Hypr App Switcher demarre"
-                else
-                    log "Hypr App Switcher s'est arrete; verification des erreurs necessaire"
-                fi
-            else
-                log "Echec du lancement de Hypr App Switcher"
-            fi
-        fi
-    fi
-
-    sleep 2
-done
+exec serpantinumd start

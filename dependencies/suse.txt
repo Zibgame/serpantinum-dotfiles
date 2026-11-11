@@ -1,0 +1,29 @@
+# Serpantinum — openSUSE dependencies (zypper)
+# One package per line. Lines starting with # are ignored.
+# Packages absent from the target release are skipped with a warning.
+
+# Desktop / window management
+hyprland
+kitty
+swaybg
+wofi
+grim
+slurp
+wl-clipboard
+xdg-desktop-portal-hyprland
+
+# Shell
+zsh
+git
+curl
+
+# Editor
+vim
+
+# Helpers
+python3
+xdg-user-dirs
+sudo
+
+# Fonts (prompt icons/emoji)
+noto-color-emoji-fonts

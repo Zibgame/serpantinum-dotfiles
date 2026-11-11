@@ -112,6 +112,50 @@ hypr_reload() {
     fi
 }
 
+# --- Package helpers (family-aware, set by lib/detect.sh) --------------------
+# pkg_installed <name>     -> 0 when the package is present.
+# pkg_available <name>     -> 0 when the package exists in the repositories.
+# pkg_install <names...>   -> install via the family package manager.
+pkg_installed() {
+    local pkg="$1"
+    case "$SERP_PKG_FAMILY" in
+        arch)   pacman -Qq "$pkg" >/dev/null 2>&1 ;;
+        debian) dpkg-query -W -f='${Status}\n' "$pkg" 2>/dev/null | grep -q "install ok installed" ;;
+        fedora) rpm -q "$pkg" >/dev/null 2>&1 ;;
+        suse)   rpm -q "$pkg" >/dev/null 2>&1 ;;
+        *)      return 1 ;;
+    esac
+}
+
+pkg_available() {
+    local pkg="$1"
+    case "$SERP_PKG_FAMILY" in
+        arch)   pacman -Si "$pkg" >/dev/null 2>&1 ;;
+        debian) apt-cache show "$pkg" >/dev/null 2>&1 ;;
+        fedora) dnf -q list available "$pkg" >/dev/null 2>&1 \
+                    || dnf5 -q list available "$pkg" >/dev/null 2>&1 \
+                    || yum -q list available "$pkg" >/dev/null 2>&1 ;;
+        suse)   zypper -q se -s --match-exact "$pkg" 2>/dev/null | grep -q " | $pkg |" ;;
+        *)      return 1 ;;
+    esac
+}
+
+pkg_install() {
+    local pkgs=("$@")
+    ((${#pkgs[@]} > 0)) || return 0
+    case "$SERP_PKG_FAMILY" in
+        arch)   sudo_run pacman -S --needed --noconfirm "${pkgs[@]}" ;;
+        debian) sudo_run apt-get install -y "${pkgs[@]}" ;;
+        fedora)
+            if ! sudo_run dnf install -y "${pkgs[@]}" 2>/dev/null \
+               && ! sudo_run dnf5 install -y "${pkgs[@]}" 2>/dev/null; then
+                sudo_run yum install -y "${pkgs[@]}"
+            fi ;;
+        suse)   sudo_run zypper -n install -l "${pkgs[@]}" ;;
+        *)      log_warn "aucun gestionnaire de paquets pour installer: ${pkgs[*]}" ; return 1 ;;
+    esac
+}
+
 is_installed() {
     [[ -f "$SERP_STATE_DIR/installed" ]]
 }

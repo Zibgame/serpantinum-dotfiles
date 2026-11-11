@@ -32,16 +32,23 @@ case "${1:-status}" in
         echo "fond d'ecran applique: $WALLPAPER"
         ;;
     doctor)
+        # shellcheck source=../lib/detect.sh
+        source "$SERP_ROOT/lib/detect.sh"
+        detect_environment
         echo "== Serpantinum doctor =="
-        echo "-- paquets --"
-        while IFS= read -r pkg; do
-            [[ -z "$pkg" || "$pkg" == \#* ]] && continue
-            if pacman -Qq "$pkg" >/dev/null 2>&1; then
-                printf '  ok      %s\n' "$pkg"
-            else
-                printf '  manque  %s\n' "$pkg"
-            fi
-        done < "$SERP_ROOT/dependencies/arch.txt"
+        echo "-- paquets ($SERP_PKG_FAMILY) --"
+        if [[ -n "$SERP_PKG_CMD" && -f "$SERP_DEPS_FILE" ]]; then
+            while IFS= read -r pkg; do
+                [[ -z "$pkg" || "$pkg" == \#* ]] && continue
+                if pkg_installed "$pkg"; then
+                    printf '  ok      %s\n' "$pkg"
+                else
+                    printf '  manque  %s\n' "$pkg"
+                fi
+            done < "$SERP_DEPS_FILE"
+        else
+            echo "  (distribution non reconnue: verification des paquets ignoree)"
+        fi
         echo "-- liens --"
         for f in "$HOME/.zshrc" "$HOME/.vimrc" \
                  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua" \

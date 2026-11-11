@@ -56,4 +56,8 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("xdg-user-dirs-update")
     -- VirtualBox guests: clipboard sharing between host and guest.
     hl.exec_cmd("command -v VBoxClient >/dev/null 2>&1 && VBoxClient --clipboard")
+    -- Official Serpantinum shell. The autostart script rebuilds the missing
+    -- Hyprland/Wayland environment itself, so it works from exec-once, tty1
+    -- or a manual launch without "serpantinum does not start" surprises.
+    hl.exec_cmd("sh -c '" .. home .. "/.local/bin/serpantinum-autostart.sh'")
 end)

@@ -20,6 +20,9 @@ done
 # Keep the personal management CLI separate from the official shell CLI.
 link_config "$SERP_ROOT/bin/serpantinum" "$HOME/.local/bin/serpantinum-dotfiles"
 
+# Robust launcher for the official Serpantinum shell (see bin/serpantinum-autostart.sh).
+link_config "$SERP_ROOT/bin/serpantinum-autostart.sh" "$HOME/.local/bin/serpantinum-autostart.sh"
+
 chmod +x "$SERP_ROOT/bin/"*
 
 hypr_reload
