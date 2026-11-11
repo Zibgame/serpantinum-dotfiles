@@ -32,6 +32,8 @@ case "${1:-status}" in
         echo "fond d'ecran applique: $WALLPAPER"
         ;;
     doctor)
+        # shellcheck source=../lib/common.sh
+        source "$SERP_ROOT/lib/common.sh"
         # shellcheck source=../lib/detect.sh
         source "$SERP_ROOT/lib/detect.sh"
         detect_environment
