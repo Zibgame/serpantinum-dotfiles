@@ -51,3 +51,12 @@ for _, namespace in ipairs(blurrable_layers) do
         blur_popups = true,
     })
 end
+
+-- kitty and foot ship their own background alpha (background-only, so the
+-- text stays crisp). GNOME Terminal has no native transparency: make it
+-- translucent at the compositor level so the glass blur still applies.
+hl.window_rule({
+    name   = "serpantinum-blur-gnome-terminal",
+    match  = { class = "org.gnome.Terminal" },
+    opacity = "0.85",
+})
