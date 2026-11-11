@@ -51,7 +51,12 @@ Supported distributions (package manager detected automatically):
   Debian      : Debian, Ubuntu, Kali, Parrot, Mint, Pop!_OS
   Fedora      : Fedora, Nobara, RHEL, CentOS Stream, Rocky, Alma
   SUSE        : openSUSE Leap, openSUSE Tumbleweed
+  Void        : Void Linux (glibc, musl)
   Other       : dotfiles only (packages skipped).
+
+The official Serpantinum shell installs on Arch, Fedora and Void only.
+On the other distributions the personal dotfiles (zsh, vim, Hyprland,
+wallpaper, keybinds) install normally, without the graphical shell.
 HELP
 }
 
@@ -116,6 +121,17 @@ install_serpantinum_upstream() {
         log_skip "Serpantinum officiel deja installe"
         return 0
     fi
+    # The official Serpantinum installer only supports Arch, Fedora and Void
+    # (pacman/dnf/xbps). On other distributions the personal dotfiles still
+    # install fine, the graphical shell is simply not available.
+    case "$SERP_PKG_FAMILY" in
+        arch|fedora|void) ;;
+        *)
+            log_warn "Serpantinum officiel indisponible sur cette distribution (Arch/Fedora/Void seulement)"
+            log_info "les dotfiles personnels (zsh, vim, hyprland, fond d'ecran) seront installes normalement"
+            return 0
+            ;;
+    esac
 
     # The official installer can replace Hyprland and Kitty configuration.
     # Save the current configuration before it starts.

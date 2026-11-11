@@ -123,6 +123,7 @@ pkg_installed() {
         debian) dpkg-query -W -f='${Status}\n' "$pkg" 2>/dev/null | grep -q "install ok installed" ;;
         fedora) rpm -q "$pkg" >/dev/null 2>&1 ;;
         suse)   rpm -q "$pkg" >/dev/null 2>&1 ;;
+        void)   xbps-query "$pkg" >/dev/null 2>&1 ;;
         *)      return 1 ;;
     esac
 }
@@ -136,6 +137,7 @@ pkg_available() {
                     || dnf5 -q list available "$pkg" >/dev/null 2>&1 \
                     || yum -q list available "$pkg" >/dev/null 2>&1 ;;
         suse)   zypper -q se -s --match-exact "$pkg" 2>/dev/null | grep -q " | $pkg |" ;;
+        void)   xbps-query -R "$pkg" >/dev/null 2>&1 ;;
         *)      return 1 ;;
     esac
 }
@@ -152,6 +154,7 @@ pkg_install() {
                 sudo_run yum install -y "${pkgs[@]}"
             fi ;;
         suse)   sudo_run zypper -n install -l "${pkgs[@]}" ;;
+        void)   sudo_run xbps-install -Sy "${pkgs[@]}" ;;
         *)      log_warn "aucun gestionnaire de paquets pour installer: ${pkgs[*]}" ; return 1 ;;
     esac
 }

@@ -38,6 +38,8 @@ _serp_classify() {
         echo fedora
     elif [[ "$id" == opensuse* || "$id" == *suse* || "$like" == *suse* ]]; then
         echo suse
+    elif _serp_token_in "$id" void || _serp_token_in "$like" void; then
+        echo void
     else
         echo none
     fi
@@ -51,6 +53,7 @@ _serp_pkg_cmd() {
         debian) for c in apt-get apt;  do command -v "$c" >/dev/null 2>&1 && { echo "$c"; return 0; } ; done ;;
         fedora) for c in dnf dnf5 yum; do command -v "$c" >/dev/null 2>&1 && { echo "$c"; return 0; } ; done ;;
         suse)   for c in zypper;       do command -v "$c" >/dev/null 2>&1 && { echo "$c"; return 0; } ; done ;;
+        void)   for c in xbps-install; do command -v "$c" >/dev/null 2>&1 && { echo "$c"; return 0; } ; done ;;
     esac
     return 1
 }
@@ -74,6 +77,7 @@ detect_environment() {
         debian) log_ok "Distribution: ${PRETTY_NAME:-Debian} (famille Debian)" ;;
         fedora) log_ok "Distribution: ${PRETTY_NAME:-Fedora} (famille Fedora)" ;;
         suse)   log_ok "Distribution: ${PRETTY_NAME:-openSUSE} (famille SUSE)" ;;
+        void)   log_ok "Distribution: ${PRETTY_NAME:-Void Linux} (famille Void)" ;;
         none)   log_warn "Distribution non reconnue: ${PRETTY_NAME:-inconnue} — paquets ignores, dotfiles installes quand meme" ;;
     esac
 
@@ -93,7 +97,7 @@ detect_environment() {
 
     if command -v Hyprland >/dev/null 2>&1; then
         log_ok "Hyprland: $(Hyprland --version 2>/dev/null | head -n1 || echo present)"
-    elif [[ "$SERP_PKG_FAMILY" == "arch" ]]; then
+    elif [[ "$SERP_PKG_FAMILY" == "arch" || "$SERP_PKG_FAMILY" == "void" ]]; then
         log_warn "Hyprland absent: il sera installe par le module paquets"
     else
         log_warn "Hyprland absent: installe-le avec le gestionnaire de paquets de ta distribution"
