@@ -32,8 +32,21 @@ hl.config({
         },
         blur = {
             enabled = true,
-            size = 3,
-            passes = 1,
+            -- Signature glass look: multi-pass blur with vibrancy, noise and
+            -- contrast tuning (the community "aesthetic" recipe).
+            size = 6,
+            passes = 3,
+            vibrancy = 0.17,
+            vibrancy_darkness = 0.0,
+            noise = 0.0117,
+            contrast = 0.8916,
+            brightness = 1.0,
+            -- Opaque windows stay crisp; translucent ones (terminals, panels)
+            -- get the full glass effect.
+            ignore_opacity = false,
+            xray = false,
+            special = false,
+            new_optimizations = true,
         },
     },
 

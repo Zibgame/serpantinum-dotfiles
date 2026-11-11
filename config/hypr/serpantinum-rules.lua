@@ -29,3 +29,25 @@ hl.window_rule({
     },
     no_focus = true,
 })
+
+-- Serpantinum — glass blur for every layer surface that can be blurred.
+-- The bar, dock, floating panels, launchers and notification daemons get the
+-- frosted-glass treatment; the wallpaper layers obviously do not.
+local blurrable_layers = {
+    "quickshell",           -- Serpantinum bar, dock and widgets
+    "qs-floating-overlay",  -- Serpantinum floating panels / quick actions
+    "wofi",                 -- application launcher
+    "rofi",                 -- launcher (alternative)
+    "dunst",                -- notification daemon
+    "swaync",               -- notification center
+    "waybar",               -- in case a third-party bar is used
+}
+
+for _, namespace in ipairs(blurrable_layers) do
+    hl.layer_rule({
+        name = "serpantinum-blur-" .. namespace,
+        match = { namespace = namespace },
+        blur = true,
+        blur_popups = true,
+    })
+end
