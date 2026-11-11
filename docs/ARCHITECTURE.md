@@ -15,7 +15,8 @@ install.sh
   ├─ modules/25-kitty       kitty.conf + foot.ini (translucent terminals)
   ├─ modules/30-vim         vim-plug, .vimrc, PlugInstall
   ├─ modules/40-hyprland    Lua modules + helpers + live reload
-  └─ modules/45-autostart   systemd user watcher (autostart fallback)
+  ├─ modules/45-autostart   systemd user watcher (autostart fallback)
+  └─ modules/48-wallpaper-picker  software-renderer fix for the wallpaper picker
 ```
 
 Every module is idempotent and can be re-run alone:

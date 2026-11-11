@@ -57,7 +57,8 @@ serpantinum-dotfiles/
 │   ├── 25-kitty.sh
 │   ├── 30-vim.sh
 │   ├── 40-hyprland.sh
-│   └── 45-autostart.sh
+│   ├── 45-autostart.sh
+│   └── 48-wallpaper-picker.sh
 ├── dependencies/
 │   ├── arch.txt                    # Arch-family packages (pacman)
 │   ├── debian.txt                  # Debian/Ubuntu/Kali (apt)
