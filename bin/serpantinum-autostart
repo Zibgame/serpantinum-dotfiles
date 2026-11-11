@@ -34,8 +34,42 @@ test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" || {
     exit 1
 }
 
-# Lancer Serpantinum avec le rendu logiciel
+# Dans VirtualBox, utiliser Vulkan via Lavapipe. Cela conserve les effets Qt
+# natifs (masques, arrondis et animations) sans dependre de l'EGL de la VM.
 export QT_QPA_PLATFORM=wayland
-export QT_QUICK_BACKEND=software
+
+is_virtualbox=0
+if command -v systemd-detect-virt >/dev/null 2>&1 &&
+   [[ "$(systemd-detect-virt --vm 2>/dev/null || true)" == "oracle" ]]; then
+    is_virtualbox=1
+elif [[ -r /sys/class/dmi/id/product_name ]] &&
+     grep -qi 'virtualbox' /sys/class/dmi/id/product_name; then
+    is_virtualbox=1
+fi
+
+if (( is_virtualbox )); then
+    lavapipe_icd=""
+    for candidate in \
+        /usr/share/vulkan/icd.d/lvp_icd*.json \
+        /etc/vulkan/icd.d/lvp_icd*.json \
+        /usr/share/vulkan/icd.d/lavapipe_icd*.json \
+        /etc/vulkan/icd.d/lavapipe_icd*.json; do
+        if [[ -f "$candidate" ]]; then
+            lavapipe_icd="$candidate"
+            break
+        fi
+    done
+
+    if [[ -n "$lavapipe_icd" ]]; then
+        unset QT_QUICK_BACKEND
+        export QSG_RHI_BACKEND=vulkan
+        export VK_DRIVER_FILES="$lavapipe_icd"
+        echo "Serpantinum: rendu VirtualBox Vulkan/Lavapipe"
+    else
+        export QT_QUICK_BACKEND=software
+        unset QSG_RHI_BACKEND VK_DRIVER_FILES
+        echo "AVERTISSEMENT : Lavapipe absent, rendu Qt software limite" >&2
+    fi
+fi
 
 exec serpantinumd start

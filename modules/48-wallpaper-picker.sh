@@ -1,26 +1,52 @@
 #!/usr/bin/env bash
-# 48 — Wallpaper picker: compatibility with the Qt Quick software renderer.
+# 48 — Wallpaper picker: restore the complete upstream visual effects.
 #
-# VirtualBox sessions run the shell with QT_QUICK_BACKEND=software (the
-# GL stack of the guest is unreliable). The software renderer does not
-# support ShaderEffect/MultiEffect, so upstream's rounded-corner mask
-# (layer.enabled + MultiEffect on the picker thumbnails) renders as
-# nothing and the wallpaper gallery appears empty.
-#
-# The fix keeps the GPU path untouched on real hardware and disables the
-# layer (falling back to clip-based rendering) only when the software
-# backend is active. Idempotent: a marker property detects previous runs.
+# Older installer revisions disabled the thumbnail layer under VirtualBox
+# because QT_QUICK_BACKEND=software cannot render ShaderEffect/MultiEffect.
+# The launchers now use Vulkan through Mesa Lavapipe instead, so the original
+# layer can stay enabled and Serpantinum keeps its masks, rounded corners,
+# complete gallery and native animations.
 
-PickerFix_pick() {
+WallpaperPickerNative_restore() {
     local picker="$SERP_DATA_DIR/src/quickshell/wallpaper/WallpaperPicker.qml"
     if [[ ! -f "$picker" ]]; then
         log_skip "wallpaper picker ignore: Serpantinum officiel non installe"
         return 0
     fi
 
-    if grep -Fq 'serpSoftwareRender' "$picker"; then
-        log_ok "wallpaper picker deja compatible rendu software"
+    if ! grep -Fq 'serpSoftwareRender' "$picker"; then
+        if grep -Fq 'layer.enabled: true' "$picker"; then
+            log_ok "wallpaper picker natif deja actif"
+        else
+            log_warn "wallpaper picker non modifie: structure upstream inconnue"
+        fi
         return 0
+    fi
+
+    local is_virtualbox=0 candidate lavapipe_icd=""
+    if command -v systemd-detect-virt >/dev/null 2>&1 &&
+       [[ "$(systemd-detect-virt --vm 2>/dev/null || true)" == "oracle" ]]; then
+        is_virtualbox=1
+    elif [[ -r /sys/class/dmi/id/product_name ]] &&
+         grep -qi 'virtualbox' /sys/class/dmi/id/product_name; then
+        is_virtualbox=1
+    fi
+
+    if (( is_virtualbox )); then
+        for candidate in \
+            /usr/share/vulkan/icd.d/lvp_icd*.json \
+            /etc/vulkan/icd.d/lvp_icd*.json \
+            /usr/share/vulkan/icd.d/lavapipe_icd*.json \
+            /etc/vulkan/icd.d/lavapipe_icd*.json; do
+            if [[ -f "$candidate" ]]; then
+                lavapipe_icd="$candidate"
+                break
+            fi
+        done
+        if [[ -z "$lavapipe_icd" ]]; then
+            log_warn "Lavapipe absent: ancien fallback du picker conserve"
+            return 0
+        fi
     fi
 
     local py=""
@@ -30,7 +56,7 @@ PickerFix_pick() {
         py="python"
     fi
     if [[ -z "$py" ]]; then
-        log_warn "python introuvable: patch du wallpaper picker ignore"
+        log_warn "python introuvable: restauration du picker natif ignoree"
         return 0
     fi
 
@@ -41,47 +67,30 @@ import sys
 path = sys.argv[1]
 src = open(path, encoding="utf-8").read()
 
-if "serpSoftwareRender" in src:
-    sys.exit(0)
-
 pattern = re.compile(
-    r"(                    Item \{\n"
-    r"                        anchors\.fill: parent\n)"
-    r"                        layer\.enabled: (?:true|false)\n"
-    r"(?:                        clip: (?:true|false|serpSoftwareRender)\n)?"
-    r"(                        layer\.effect: MultiEffect \{\n"
-    r"                            maskEnabled: true\n"
-    r"                            maskSource: paperMask)"
+    r'                        readonly property bool serpSoftwareRender: Quickshell\.env\("QT_QUICK_BACKEND"\) === "software"\n'
+    r'                        layer\.enabled: !serpSoftwareRender\n'
+    r'                        clip: serpSoftwareRender\n'
 )
-
-replacement = (
-    r"\1"
-    "                        readonly property bool serpSoftwareRender: Quickshell.env(\"QT_QUICK_BACKEND\") === \"software\"\n"
-    "                        layer.enabled: !serpSoftwareRender\n"
-    "                        clip: serpSoftwareRender\n"
-    r"\2"
-)
-
-new, count = pattern.subn(replacement, src)
+new, count = pattern.subn("                        layer.enabled: true\n", src)
 if count != 1:
-    print("pattern du picker non trouve (%d correspondances), upstream a peut-etre change" % count)
+    print("ancien patch du picker non reconnu (%d correspondances)" % count)
     sys.exit(2)
 
 open(path, "w", encoding="utf-8").write(new)
-print("patched")
+print("restored")
 PYEOF
     then
-        log_warn "patch du wallpaper picker non applique (voir message ci-dessus)"
+        log_warn "restauration du picker natif non appliquee"
         return 0
     fi
 
-    log_ok "wallpaper picker compatible rendu software (VirtualBox)"
+    log_ok "wallpaper picker natif restaure (arrondis et animations)"
 
-    # Apply immediately when the shell is already running.
     if pgrep -f 'quickshell -p' >/dev/null 2>&1 && [[ -x "$SERP_UPSTREAM_CLI" ]]; then
         "$SERP_UPSTREAM_CLI" restart >/dev/null 2>&1 || true
-        log_ok "shell Serpantinum relance avec le picker repare"
+        log_ok "shell Serpantinum relance avec le picker natif"
     fi
 }
 
-PickerFix_pick
+WallpaperPickerNative_restore

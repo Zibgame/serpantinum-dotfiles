@@ -16,7 +16,8 @@ install.sh
   ├─ modules/30-vim         vim-plug, .vimrc, PlugInstall
   ├─ modules/40-hyprland    Lua modules + helpers + live reload
   ├─ modules/45-autostart   systemd user watcher (autostart fallback)
-  └─ modules/48-wallpaper-picker  software-renderer fix for the wallpaper picker
+  ├─ modules/48-wallpaper-picker  native Vulkan effects for the wallpaper picker
+  └─ modules/49-wallpaper-engine  full-resolution wallpaper rendering
 ```
 
 Every module is idempotent and can be re-run alone:
@@ -26,6 +27,11 @@ source lib/common.sh
 source lib/detect.sh
 source modules/30-vim.sh
 ```
+
+Inside VirtualBox, the shell launchers select Mesa Lavapipe as Qt's Vulkan
+backend. This preserves the same `MultiEffect` masks, rounded thumbnails and
+animations as a hardware-rendered Serpantinum session. If Lavapipe is missing,
+the launcher keeps a safe Qt software fallback and reports the missing driver.
 
 ## Configuration model
 

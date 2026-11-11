@@ -35,7 +35,7 @@ serpantinum doctor
 
 | Part | Details |
 |---|---|
-| Packages | Only the missing ones, from `dependencies/arch.txt` (pacman) |
+| Packages | Only the missing ones, including Lavapipe for native Qt effects in VMs |
 | Zsh | oh-my-zsh + your `.zshrc`, login shell switched to Zsh |
 | Vim | vim-plug + your `.vimrc` + all plugins (`PlugInstall`) |
 | Hyprland | Modular Lua config: appearance, rules, Ubuntu-like keybinds |
@@ -58,7 +58,8 @@ serpantinum-dotfiles/
 │   ├── 30-vim.sh
 │   ├── 40-hyprland.sh
 │   ├── 45-autostart.sh
-│   └── 48-wallpaper-picker.sh
+│   ├── 48-wallpaper-picker.sh
+│   └── 49-wallpaper-engine.sh
 ├── dependencies/
 │   ├── arch.txt                    # Arch-family packages (pacman)
 │   ├── debian.txt                  # Debian/Ubuntu/Kali (apt)
@@ -81,7 +82,7 @@ serpantinum-dotfiles/
 │   ├── serpantinum                # management CLI
 │   ├── serpantinum-snap           # Ubuntu-like window snapping
 │   ├── serpantinum-terminal       # terminal launcher (software GL in VMs)
-│   └── serpantinum-autostart.sh   # robust shell launcher
+│   └── serpantinum-autostart.sh   # robust shell launcher (Vulkan in VirtualBox)
 └── docs/
     ├── ARCHITECTURE.md
     └── KEYBINDS.md

@@ -50,6 +50,11 @@ for _, namespace in ipairs(blurrable_layers) do
         match = { namespace = namespace },
         blur = true,
         blur_popups = true,
+        -- Do not blur the transparent padding of layer surfaces.  The
+        -- Serpantinum top bar is 40 px high but its surface is 52 px high in
+        -- fill mode so it can draw the rounded bottom corners.  Blurring the
+        -- fully transparent 12 px tail creates a dark strip below the bar.
+        ignore_alpha = 0.18,
     })
 end
 
