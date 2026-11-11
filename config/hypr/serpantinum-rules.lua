@@ -31,11 +31,12 @@ hl.window_rule({
 })
 
 -- Serpantinum — glass blur for every layer surface that can be blurred.
--- The bar, dock, floating panels, launchers and notification daemons get the
--- frosted-glass treatment; the wallpaper layers obviously do not.
+-- The bar, launchers and notification daemons get the frosted-glass
+-- treatment; the wallpaper layers obviously do not. Fullscreen transparent
+-- overlays (qs-floating-overlay) must NOT be blurred: a blur rule on a
+-- full-screen transparent layer blurs the entire desktop seen through it.
 local blurrable_layers = {
     "quickshell",           -- Serpantinum bar, dock and widgets
-    "qs-floating-overlay",  -- Serpantinum floating panels / quick actions
     "wofi",                 -- application launcher
     "rofi",                 -- launcher (alternative)
     "dunst",                -- notification daemon
