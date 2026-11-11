@@ -1,8 +1,8 @@
 # Serpantinum Dotfiles
 
 Personal Arch Linux environment: **Hyprland** (floating, Ubuntu-like window
-management — no Tiling Shell), **Zsh**, **Vim**, a custom wallpaper and a
-modular installer that reproduces everything on a fresh VM.
+management — no Tiling Shell), **Zsh**, **Vim** and a modular installer that
+reproduces everything on a fresh VM.
 
 ```text
   ____                       _   _
@@ -39,7 +39,6 @@ serpantinum doctor
 | Zsh | oh-my-zsh + your `.zshrc`, login shell switched to Zsh |
 | Vim | vim-plug + your `.vimrc` + all plugins (`PlugInstall`) |
 | Hyprland | Modular Lua config: appearance, rules, Ubuntu-like keybinds |
-| Wallpaper | `assets/wallpapers/serpantinum.jpg`, applied with `swaybg` |
 | Helpers | `serpantinum-terminal`, `serpantinum-snap`, `serpantinum` CLI |
 
 ## Architecture
@@ -58,25 +57,30 @@ serpantinum-dotfiles/
 │   ├── 25-kitty.sh
 │   ├── 30-vim.sh
 │   ├── 40-hyprland.sh
-│   └── 50-wallpaper.sh
+│   └── 45-autostart.sh
 ├── dependencies/
-│   └── arch.txt                   # declarative package list
+│   ├── arch.txt                    # Arch-family packages (pacman)
+│   ├── debian.txt                  # Debian/Ubuntu/Kali (apt)
+│   ├── fedora.txt                  # Fedora/RHEL (dnf)
+│   ├── suse.txt                    # openSUSE (zypper)
+│   └── void.txt                    # Void Linux (xbps)
 ├── config/
 │   ├── zsh/.zshrc
 │   ├── vim/.vimrc
 │   ├── kitty/kitty.conf
+│   ├── foot/foot.ini
 │   ├── hypr/
 │   │   ├── hyprland.lua           # entry point (require)
 │   │   ├── serpantinum-appearance.lua
 │   │   ├── serpantinum-rules.lua
 │   │   └── serpantinum-keybinds.lua
+│   ├── systemd/user/              # autostart watcher unit
 │   └── serpantinum/env.sh         # environment + tty1 autostart
 ├── bin/
 │   ├── serpantinum                # management CLI
 │   ├── serpantinum-snap           # Ubuntu-like window snapping
-│   └── serpantinum-terminal       # terminal launcher (software GL in VMs)
-├── assets/wallpapers/
-│   └── serpantinum.jpg
+│   ├── serpantinum-terminal       # terminal launcher (software GL in VMs)
+│   └── serpantinum-autostart.sh   # robust shell launcher
 └── docs/
     ├── ARCHITECTURE.md
     └── KEYBINDS.md

@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # Serpantinum — small management CLI.
 #
-# Usage: serpantinum {status|reload|wallpaper|doctor}
+# Usage: serpantinum {status|reload|doctor}
 set -euo pipefail
 
 SERP_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum"
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/serpantinum"
-WALLPAPER="$DATA_DIR/wallpapers/serpantinum.jpg"
 
 # Allow the CLI to talk to Hyprland from a plain SSH session.
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -24,12 +22,6 @@ case "${1:-status}" in
         ;;
     reload)
         hyprctl reload && echo "Hyprland recharge"
-        ;;
-    wallpaper)
-        [[ -f "$WALLPAPER" ]] || { echo "fond d'ecran introuvable: $WALLPAPER" >&2; exit 1; }
-        pkill -x swaybg 2>/dev/null || true
-        hyprctl dispatch "hl.dsp.exec_cmd(\"swaybg -i '$WALLPAPER' -m fill\")" >/dev/null
-        echo "fond d'ecran applique: $WALLPAPER"
         ;;
     doctor)
         # shellcheck source=../lib/common.sh
@@ -69,7 +61,7 @@ case "${1:-status}" in
             || echo "  non installe"
         ;;
     *)
-        echo "usage: serpantinum {status|reload|wallpaper|doctor}" >&2
+        echo "usage: serpantinum {status|reload|doctor}" >&2
         exit 2
         ;;
 esac

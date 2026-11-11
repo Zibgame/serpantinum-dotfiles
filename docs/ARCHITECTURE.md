@@ -8,14 +8,14 @@ for one concern.
 
 ```text
 install.sh
-  ├─ lib/detect.sh          Arch / user / Hyprland detection
+  ├─ lib/detect.sh          distribution / user / Hyprland detection
   ├─ modules/00-preflight   network + state directories
-  ├─ modules/10-packages    missing pacman packages only
+  ├─ modules/10-packages    missing packages only (multi-distro)
   ├─ modules/20-zsh         oh-my-zsh, .zshrc, login shell
-  ├─ modules/25-kitty       kitty.conf (natural window size)
+  ├─ modules/25-kitty       kitty.conf + foot.ini (translucent terminals)
   ├─ modules/30-vim         vim-plug, .vimrc, PlugInstall
   ├─ modules/40-hyprland    Lua modules + helpers + live reload
-  └─ modules/50-wallpaper   asset install + live swaybg
+  └─ modules/45-autostart   systemd user watcher (autostart fallback)
 ```
 
 Every module is idempotent and can be re-run alone:
@@ -36,10 +36,10 @@ directory. The repository is the single source of truth:
 | `config/zsh/.zshrc` | `~/.zshrc` |
 | `config/vim/.vimrc` | `~/.vimrc` |
 | `config/kitty/kitty.conf` | `~/.config/kitty/kitty.conf` |
+| `config/foot/foot.ini` | `~/.config/foot/foot.ini` |
 | `config/hypr/*.lua` | `~/.config/hypr/*.lua` |
 | `config/serpantinum/env.sh` | `~/.config/serpantinum/env.sh` |
 | `bin/*` | `~/.local/bin/*` |
-| `assets/wallpapers/serpantinum.jpg` | `~/.local/share/serpantinum/wallpapers/` |
 
 Before replacing anything, `lib/common.sh:backup_file()` copies the previous
 file to `~/.local/state/serpantinum/backups/<timestamp>/`.
@@ -48,11 +48,11 @@ file to `~/.local/state/serpantinum/backups/<timestamp>/`.
 
 Hyprland ≥ 0.57 uses Lua. `hyprland.lua` requires three modules:
 
-* `serpantinum-appearance.lua` — monitors, decorations, input, autostart
-  (`swaybg`, `xdg-user-dirs`, VirtualBox clipboard).
-* `serpantinum-rules.lua` — **floats every window** and centres it. This is
-  what removes automatic tiling: there is no Tiling Shell and no tiling
-  layout in use.
+* `serpantinum-appearance.lua` — monitors, decorations (glass blur), input,
+  autostart (`xdg-user-dirs`, VirtualBox clipboard, Serpantinum shell).
+* `serpantinum-rules.lua` — **floats every window** and centres it, plus the
+  glass-blur layer rules. This is what removes automatic tiling: there is
+  no Tiling Shell and no tiling layout in use.
 * `serpantinum-keybinds.lua` — Ubuntu-style shortcuts. Snapping and monitor
   moves call `bin/serpantinum-snap`, which uses `hyprctl` JSON output and the
   Lua dispatchers (`hl.dsp.window.move/resize`).
@@ -65,14 +65,12 @@ Hyprland ≥ 0.57 uses Lua. `hyprland.lua` requires three modules:
 ├── source             # path of the clone that installed it
 ├── hyprland.log       # tty1 autostart log
 └── backups/           # timestamped backups of replaced files
-
-~/.local/share/serpantinum/
-└── wallpapers/serpantinum.jpg
 ```
 
 ## Extending
 
-* **New package**: add it to `dependencies/arch.txt`.
+* **New package**: add it to `dependencies/arch.txt` (or `debian.txt`,
+  `fedora.txt`, `suse.txt`, `void.txt` for the matching family).
 * **New config file**: add it under `config/` and link it from the relevant
   module with `link_config`.
 * **New module**: drop `modules/60-whatever.sh`; it is sourced automatically

@@ -5,7 +5,6 @@
 # Desktop / window management
 Hyprland
 kitty
-swaybg
 wofi
 grim
 slurp

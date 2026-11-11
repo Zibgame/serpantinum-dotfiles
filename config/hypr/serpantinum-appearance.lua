@@ -1,8 +1,6 @@
 -- Serpantinum — monitors, look and feel, environment, autostart.
 
 local home = os.getenv("HOME")
-local data_home = os.getenv("XDG_DATA_HOME") or (home .. "/.local/share")
-local wallpaper = data_home .. "/serpantinum/wallpapers/serpantinum.jpg"
 
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 
@@ -65,7 +63,6 @@ hl.config({
 hl.on("hyprland.start", function()
     -- The systemd user autostart watcher runs the shell using hyprctl eval
     -- after the Hyprland Wayland session becomes available.
-    hl.exec_cmd("swaybg -i '" .. wallpaper .. "' -m fill")
     hl.exec_cmd("xdg-user-dirs-update")
     -- VirtualBox guests: clipboard sharing between host and guest.
     hl.exec_cmd("command -v VBoxClient >/dev/null 2>&1 && VBoxClient --clipboard")

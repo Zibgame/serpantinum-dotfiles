@@ -8,9 +8,9 @@
 #   ./install.sh
 #
 # Installation order:
-#   1. Preflight + Arch packages
+#   1. Preflight + distribution packages
 #   2. Official Serpantinum Shell
-#   3. All personal dotfiles (Zsh, Kitty, Vim, Hyprland, wallpapers...)
+#   3. All personal dotfiles (Zsh, Kitty, Vim, Hyprland...)
 #
 # Existing personal configs are backed up before the upstream install.
 # =============================================================================
@@ -128,7 +128,7 @@ install_serpantinum_upstream() {
         arch|fedora|void) ;;
         *)
             log_warn "Serpantinum officiel indisponible sur cette distribution (Arch/Fedora/Void seulement)"
-            log_info "les dotfiles personnels (zsh, vim, hyprland, fond d'ecran) seront installes normalement"
+            log_info "les dotfiles personnels (zsh, vim, hyprland, keybinds) seront installes normalement"
             return 0
             ;;
     esac
@@ -223,7 +223,6 @@ summary() {
     log_info "Depot        : $SERP_ROOT"
     log_info "Etat         : $SERP_STATE_DIR"
     log_info "Sauvegardes  : $SERP_STATE_DIR/backups"
-    log_info "Fond d'ecran : $SERP_DATA_DIR/wallpapers/serpantinum.jpg"
 
     if is_upstream_installed; then
         log_ok "Serpantinum Shell installe"
@@ -245,7 +244,7 @@ main() {
 
     banner
     detect_environment
-    mkdir -p "$SERP_STATE_DIR/backups" "$SERP_DATA_DIR/wallpapers" "$SERP_CONFIG_DIR"
+    mkdir -p "$SERP_STATE_DIR/backups" "$SERP_CONFIG_DIR"
 
     # Install only the visual Alt+Tab, leaving the current wallpaper untouched.
     if [[ "$SERP_ONLY_APP_SWITCHER" -eq 1 ]]; then

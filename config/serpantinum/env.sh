@@ -4,7 +4,6 @@
 export SERPANTINUM_HOME="${SERPANTINUM_HOME:-$HOME/.local/share/serpantinum}"
 export SERPANTINUM_CONFIG="${SERPANTINUM_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/serpantinum}"
 export SERPANTINUM_STATE="${SERPANTINUM_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum}"
-export SERPANTINUM_WALLPAPER="$SERPANTINUM_HOME/wallpapers/serpantinum.jpg"
 
 case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
