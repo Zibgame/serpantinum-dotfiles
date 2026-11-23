@@ -50,6 +50,35 @@ local function set_maximized_tag(w, enabled)
     }))
 end
 
+local function tagged_maximized_candidate(workspace, excluded)
+    if not workspace then return nil end
+    local best = nil
+    local best_focus = math.huge
+    for _, w in ipairs(hl.get_windows() or {}) do
+        if w ~= excluded and w.mapped and not w.hidden and
+           w.workspace and w.workspace.id == workspace.id and
+           window_has_tag(w, maximized_tag) then
+            local focus = tonumber(w.focus_history_id) or math.huge
+            if focus < best_focus then
+                best = w
+                best_focus = focus
+            end
+        end
+    end
+    return best
+end
+
+local function restore_window_maximized(w)
+    if not w then return end
+    hl.dispatch(hl.dsp.window.fullscreen({
+        action = "set",
+        mode = "maximized",
+        window = w,
+    }))
+    hl.dispatch(hl.dsp.focus({ window = w }))
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = w }))
+end
+
 for _, existing_window in ipairs(hl.get_windows() or {}) do
     local mode = tonumber(existing_window.fullscreen) or 0
     if mode == 1 or mode == 3 then set_maximized_tag(existing_window, true) end
@@ -82,6 +111,23 @@ local maximized_state_subscription = hl.on("window.fullscreen", function(w)
     end, { timeout = 150, type = "oneshot" })
 end)
 
+-- Closing the exclusive maximized window makes Hyprland restore the previous
+-- window's old floating geometry. Recover the next window's own maximized
+-- intent immediately, including closes performed with a titlebar button.
+local close_restore_timer = nil
+local close_restore_subscription = hl.on("window.destroy", function()
+    if close_restore_timer then close_restore_timer:set_enabled(false) end
+    close_restore_timer = hl.timer(function()
+        close_restore_timer = nil
+        for _, workspace in ipairs(hl.get_workspaces() or {}) do
+            if workspace.visible and not workspace.has_fullscreen then
+                local candidate = tagged_maximized_candidate(workspace, nil)
+                if candidate then restore_window_maximized(candidate) end
+            end
+        end
+    end, { timeout = 1, type = "oneshot" })
+end)
+
 ------------------------------------------------------------
 -- Launchers
 ------------------------------------------------------------
@@ -91,8 +137,23 @@ hl.bind("Super_L", hl.dsp.exec_cmd("serpantinum msg toggle launcher"), { release
 ------------------------------------------------------------
 -- Close / focus
 ------------------------------------------------------------
-hl.bind("ALT + F4", hl.dsp.window.close())
-hl.bind(mod .. " + Q", hl.dsp.window.close())
+local function close_active_window()
+    local closing = hl.get_active_window()
+    if not closing then return end
+    local mode = tonumber(closing.fullscreen) or 0
+    local restore = nil
+    if mode == 1 or mode == 3 then
+        restore = tagged_maximized_candidate(closing.workspace, closing)
+    end
+
+    -- Close and restore in the same Lua dispatch cycle so the underlying
+    -- window is never presented for a frame at its old small geometry.
+    hl.dispatch(hl.dsp.window.close())
+    if restore then restore_window_maximized(restore) end
+end
+
+hl.bind("ALT + F4", close_active_window)
+hl.bind(mod .. " + Q", close_active_window)
 -- Quickshell visual Alt+Tab installed by modules/35-hypr-app-switcher.sh.
 local switcher = home .. "/.local/bin/serpantinum-app-switcher"
 hl.bind("ALT + Tab", hl.dsp.exec_cmd("'" .. switcher .. "' next"), { description = "Visual app switcher: next" })
@@ -151,13 +212,7 @@ end
 local function maximize_cursor_window()
     local w = window_near_cursor() or hl.get_active_window()
     if not w then return end
-    hl.dispatch(hl.dsp.focus({ window = w }))
-    hl.dispatch(hl.dsp.window.fullscreen({
-        action = "set",
-        mode = "maximized",
-        window = w,
-    }))
-    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = w }))
+    restore_window_maximized(w)
 end
 
 hl.bind(mod .. " + up", maximize_cursor_window)

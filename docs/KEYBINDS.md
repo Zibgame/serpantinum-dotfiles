@@ -77,6 +77,9 @@ Hyprland's automatic cursor warp to the window center is disabled.
 
 * Repeated `Super+Down` walks backwards through the window states and finally
   minimizes the window. `Super+H` minimizes it immediately.
+* Closing a maximized window with `Alt+F4`, `Super+Q` or its titlebar restores
+  the underlying window's own maximized state instead of its old floating
+  geometry.
 * Hyprland has no native minimize; Serpantinum uses a hidden special
   workspace (official Hyprland pattern) and restores windows with
   `Super+Shift+H`.
