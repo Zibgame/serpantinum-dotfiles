@@ -28,6 +28,24 @@ print(window.get("address", ""), window.get("pid", 0), window.get("fullscreen", 
 ')"
 [[ -n "$addr" ]] || exit 0
 
+# When a keyboard snap starts from a maximized/fullscreen window, hide the
+# intermediate restored geometry and tell the Lua titlebar handler that this
+# fullscreen exit did not come from a mouse drag.
+transition_guard=0
+cleanup_transition() {
+    if (( transition_guard )); then
+        hyprctl --batch "dispatch hl.dsp.window.set_prop({ prop = 'no_anim', value = 'false', window = 'address:$addr' }); dispatch hl.dsp.window.tag({ tag = '-serpantinum-keyboard-snap', window = 'address:$addr' })" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup_transition EXIT
+
+case "$mode:${fullscreen:-0}" in
+    left:[123]|right:[123]|top:[123]|max:[123]|center:[123])
+        transition_guard=1
+        hyprctl --batch "dispatch hl.dsp.window.tag({ tag = '+serpantinum-keyboard-snap', window = 'address:$addr' }); dispatch hl.dsp.window.set_prop({ prop = 'no_anim', value = 'true', window = 'address:$addr' })" >/dev/null
+        ;;
+esac
+
 geometry_dir="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum/window-geometry"
 geometry_file="$geometry_dir/${addr#0x}"
 
@@ -61,8 +79,10 @@ restore_geometry() {
     done
     (( w > 0 && h > 0 )) || return 1
 
-    hyprctl dispatch "hl.dsp.window.resize({ x = $w, y = $h, window = 'address:$addr' })" >/dev/null
-    hyprctl dispatch "hl.dsp.window.move({ x = $x, y = $y, relative = false, window = 'address:$addr' })" >/dev/null
+    # One IPC batch gives Hyprland a single final animation target. Sending
+    # resize and move separately makes the window briefly animate toward the
+    # opposite side before reaching its restored position.
+    hyprctl --batch "dispatch hl.dsp.window.resize({ x = $w, y = $h, window = 'address:$addr' }); dispatch hl.dsp.window.move({ x = $x, y = $y, relative = false, window = 'address:$addr' })" >/dev/null
     rm -f "$geometry_file"
 }
 
@@ -126,11 +146,10 @@ fi
 #   fs 2 = fullscreen -> plain unset
 #   fs 3 = both       -> both
 case "${fullscreen:-0}" in
-    1) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null; sleep 0.3 ;;
-    2) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null; sleep 0.3 ;;
+    1) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null ;;
+    2) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null ;;
     3) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null
-       hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null
-       sleep 0.3 ;;
+       hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null ;;
 esac
 
 case "$mode" in
@@ -285,6 +304,7 @@ else:
         ;;
 esac
 
-# Resize first, then move: resizing can shift the window slightly.
-hyprctl dispatch "hl.dsp.window.resize({ x = $w, y = $h, window = 'address:$addr' })" >/dev/null
-hyprctl dispatch "hl.dsp.window.move({ x = $x, y = $y, relative = false, window = 'address:$addr' })" >/dev/null
+# Apply both goals in one compositor transaction. With two independent IPC
+# calls, Hyprland can render the resized window at an intermediate position,
+# which looks like left snapping first jumps right (and vice versa).
+hyprctl --batch "dispatch hl.dsp.window.resize({ x = $w, y = $h, window = 'address:$addr' }); dispatch hl.dsp.window.move({ x = $x, y = $y, relative = false, window = 'address:$addr' })" >/dev/null

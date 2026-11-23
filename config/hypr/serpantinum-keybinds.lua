@@ -104,10 +104,18 @@ local drag_active = false
 local dragged_window = nil
 local drag_ratio_x = 0.5
 local drag_ratio_y = 0
+local drag_last_cursor_x = nil
+local drag_last_cursor_y = nil
+local drag_last_window_x = nil
+local drag_last_window_y = nil
 
 local function stop_drag_window()
     drag_active = false
     dragged_window = nil
+    drag_last_cursor_x = nil
+    drag_last_cursor_y = nil
+    drag_last_window_x = nil
+    drag_last_window_y = nil
     if drag_timer then
         drag_timer:set_enabled(false)
         drag_timer = nil
@@ -123,6 +131,20 @@ local function update_drag_window()
     local cursor = hl.get_cursor_pos()
     local monitor = hl.get_monitor_at_cursor() or dragged_window.monitor
     if not cursor or not monitor then return end
+
+    -- The native drag owns the mouse grab and ends automatically on button
+    -- release. If the pointer moves but Hyprland no longer moved the window,
+    -- the grab has ended: stop our size-enforcement timer as well.
+    local cursor_moved = drag_last_cursor_x and
+        (math.abs(cursor.x - drag_last_cursor_x) > 0.1 or
+         math.abs(cursor.y - drag_last_cursor_y) > 0.1)
+    local native_moved_window = drag_last_window_x and
+        (math.abs((tonumber(dragged_window.at.x) or 0) - drag_last_window_x) > 0.1 or
+         math.abs((tonumber(dragged_window.at.y) or 0) - drag_last_window_y) > 0.1)
+    if cursor_moved and drag_last_window_x and not native_moved_window then
+        stop_drag_window()
+        return
+    end
 
     local scale = tonumber(monitor.scale) or 1
     local monitor_width = (tonumber(monitor.width) or drag_width) / scale
@@ -161,7 +183,56 @@ local function update_drag_window()
         relative = false,
         window = dragged_window,
     }))
+    drag_last_cursor_x = cursor.x
+    drag_last_cursor_y = cursor.y
+    drag_last_window_x = target_x
+    drag_last_window_y = target_y
 end
+
+-- Normal Windows-style titlebar drag, without holding Super. Hyprland emits
+-- this event when dragging a maximized window by its titlebar restores it.
+-- Only react while the pointer is in the top titlebar zone so keyboard
+-- unmaximize operations keep their normal restore behaviour.
+local titlebar_restore_subscription = hl.on("window.fullscreen", function(w)
+    if not w or tonumber(w.fullscreen) ~= 0 then return end
+
+    -- Keyboard snapping also exits maximized mode, but it is not a titlebar
+    -- drag. The snap helper adds this short-lived tag around that transition.
+    for _, tag in ipairs(w.tags or {}) do
+        if tag == "serpantinum-keyboard-snap" then return end
+    end
+
+    local cursor = hl.get_cursor_pos()
+    local monitor = hl.get_monitor_at_cursor() or w.monitor
+    if not cursor or not monitor then return end
+
+    local scale = tonumber(monitor.scale) or 1
+    local monitor_width = (tonumber(monitor.width) or drag_width) / scale
+    local monitor_height = (tonumber(monitor.height) or drag_height) / scale
+    local transform = tonumber(monitor.transform) or 0
+    if transform == 1 or transform == 3 or transform == 5 or transform == 7 then
+        monitor_width, monitor_height = monitor_height, monitor_width
+    end
+
+    local reserved = monitor.reserved or {}
+    local work_x = (tonumber(monitor.x) or 0) + (tonumber(reserved[1]) or 0)
+    local work_y = (tonumber(monitor.y) or 0) + (tonumber(reserved[2]) or 0)
+    local work_width = monitor_width - (tonumber(reserved[1]) or 0) - (tonumber(reserved[3]) or 0)
+    local work_height = monitor_height - (tonumber(reserved[2]) or 0) - (tonumber(reserved[4]) or 0)
+
+    -- A real titlebar restore starts next to the top edge. This guard avoids
+    -- resizing a window restored with Super+Down or an application shortcut.
+    if cursor.y < work_y or cursor.y > work_y + 90 then return end
+
+    drag_ratio_x = clamp((cursor.x - work_x) / math.max(1, work_width), 0, 1)
+    drag_ratio_y = clamp((cursor.y - work_y) / math.max(1, work_height), 0, 1)
+
+    stop_drag_window()
+    dragged_window = w
+    drag_active = true
+    update_drag_window()
+    drag_timer = hl.timer(update_drag_window, { timeout = 16, type = "repeat" })
+end)
 
 local function start_drag_window()
     local w = hl.get_active_window()
@@ -189,17 +260,19 @@ local function start_drag_window()
     -- keyboard snap so Super+Down cannot restore an obsolete position.
     hl.dispatch(hl.dsp.exec_cmd("'" .. snap .. "' forget"))
 
-    -- Do not call Hyprland's native window.drag() here: it continuously
-    -- restores the previous floating size while the pointer moves.
     stop_drag_window()
     dragged_window = w
     drag_active = true
+
+    -- Establish the 65x18 geometry before starting Hyprland's mouse grab.
+    -- The repeating timer below keeps that geometry fixed while the native
+    -- grab takes care of detecting the exact mouse-button release.
     update_drag_window()
+    hl.dispatch(hl.dsp.window.drag())
     drag_timer = hl.timer(update_drag_window, { timeout = 16, type = "repeat" })
 end
 
 hl.bind(mod .. " + mouse:272", start_drag_window, { mouse = true })
-hl.bind(mod .. " + mouse:272", stop_drag_window, { mouse = true, release = true })
 hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 ------------------------------------------------------------

@@ -43,7 +43,7 @@ serpantinum-dotfiles doctor
 | Window management | Floating rules, snap/restore, minimize, monitors, workspaces and mouse controls |
 | Alt+Tab | Quickshell carousel using the current machine's multi-workspace ordering |
 | Top bar | Open applications replace workspace indicators; click an app to focus it |
-| Ghostty | Primary terminal used by the Hyprland shortcuts |
+| Ghostty | Primary terminal, with optional Serpantinum/Matugen palette sync |
 | Browser | Ungoogled Chromium (AUR on Arch), default browser with Google search/start page |
 | Codex | OpenAI Codex CLI installed for the user through npm |
 | Helpers | `serpantinum-terminal`, `serpantinum-snap`, `serpantinum-dotfiles` CLI |
@@ -68,6 +68,7 @@ serpantinum-dotfiles/
 │   ├── 35-hypr-app-switcher.sh
 │   ├── 37-apps-bar.sh
 │   ├── 38-window-management.sh
+│   ├── 39-ghostty-theme.sh
 │   ├── 40-hyprland.sh
 │   ├── 45-autostart.sh
 │   ├── 48-wallpaper-picker.sh
@@ -133,6 +134,15 @@ explicitly:
 | `Super+Shift+S` | Region screenshot to clipboard |
 | `Super+D` / `Super+A` | Application launcher (wofi) |
 | `Super+Return` | Terminal (convenience) |
+
+Ghostty can follow the active Serpantinum/Matugen palette. The integration is
+enabled on its first installation and remains optional:
+
+```bash
+serpantinum set theme app ghostty on
+serpantinum set theme app ghostty off
+serpantinum set theme app ghostty toggle
+```
 
 ## Idempotence and safety
 
