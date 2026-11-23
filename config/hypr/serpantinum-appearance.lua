@@ -98,7 +98,10 @@ hl.config({
 
     input = {
         kb_layout = "us",
-        follow_mouse = 1,
+        -- Windows-like focus: Alt+Tab keeps the selected window focused even
+        -- when the pointer is still over another window. Clicking a window
+        -- focuses it; merely moving the pointer does not steal focus.
+        follow_mouse = 0,
         touchpad = {
             natural_scroll = true
         },
@@ -118,6 +121,19 @@ hl.config({
         no_hardware_cursors = 1,
     },
 })
+-- No move/resize animation: windows must change size instantly (e.g. when
+-- the Alt+Tab switcher restores a maximized/fullscreen window).
+hl.animation({ leaf = "windowsMove", enabled = false })
+
+-- No fade animation anywhere (windows, workspaces, layers, popups, DPMS).
+for _, leaf in ipairs({
+    "fade", "fadeIn", "fadeOut", "fadeSwitch",
+    "fadeShadow", "fadeDim", "fadeDpms", "fadeGlow",
+    "fadeLayers", "fadeLayersIn", "fadeLayersOut",
+    "fadePopups", "fadePopupsIn", "fadePopupsOut",
+}) do
+    hl.animation({ leaf = leaf, enabled = false })
+end
 
 -- ==========================================
 -- AUTOSTART

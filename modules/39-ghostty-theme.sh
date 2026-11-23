@@ -20,6 +20,18 @@ if [[ ! -f "$GHOSTTY_APP_SPEC" ]]; then
     return 0
 fi
 
+GHOSTTY_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty"
+GHOSTTY_CONFIG_FILE="$GHOSTTY_CONFIG_DIR/config.ghostty"
+mkdir -p "$GHOSTTY_CONFIG_DIR"
+if [[ ! -f "$GHOSTTY_CONFIG_FILE" ]]; then
+    : > "$GHOSTTY_CONFIG_FILE"
+fi
+if ! grep -Eq '^\s*window-theme\s*=\s*ghostty\s*$' "$GHOSTTY_CONFIG_FILE"; then
+    printf '\n%s\n%s\n' \
+        '# Match the GTK titlebar to the active Ghostty/Serpantinum palette.' \
+        'window-theme = ghostty' >> "$GHOSTTY_CONFIG_FILE"
+fi
+
 # Enable only on first installation. Later installer runs preserve an explicit
 # `serpantinum set theme app ghostty off` choice.
 if [[ ! -e "$GHOSTTY_THEME_MARKER" ]]; then

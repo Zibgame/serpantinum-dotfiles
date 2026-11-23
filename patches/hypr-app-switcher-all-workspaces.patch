@@ -1,11 +1,11 @@
 diff --git a/modules/appswitcher/AppSwitcher.qml b/modules/appswitcher/AppSwitcher.qml
-index 367ad90..3eed3fc 100644
+index 367ad90..a885a1d 100644
 --- a/modules/appswitcher/AppSwitcher.qml
 +++ b/modules/appswitcher/AppSwitcher.qml
 @@ -53,10 +53,15 @@ Scope {
          }
      }
- 
+
 -    readonly property var currentWindows: WorkspaceSelection.windowsForWorkspace(
 -        HyprlandData.windowList,
 -        switcherScope.targetWorkspace
@@ -19,6 +19,212 @@ index 367ad90..3eed3fc 100644
 +                return ai - bi;
 +            });
 +    }
- 
+
      function findToplevel(addr) {
          if (!addr || !ToplevelManager.toplevels) return null;
+@@ -131,6 +136,29 @@ Scope {
+         }
+     }
+
++    // Coalesce an Alt release with another very fast Alt+Tab press. The
++    // compositor and IPC client are separate processes, so those two events
++    // can otherwise arrive in the opposite order and lose a switch step.
++    Timer {
++        id: releaseCommitTimer
++        interval: 50
++        repeat: false
++        onTriggered: {
++            if (GlobalStates.appSwitcherOpen) {
++                switcherScope.activateWindow(GlobalStates.appSwitcherIndex);
++            }
++        }
++    }
++
++    // Never leave an exclusive keyboard-grab overlay behind if an Alt release
++    // event is lost. This is a safety net for compositor/input edge cases.
++    Timer {
++        id: safetyCloseTimer
++        interval: 5000
++        repeat: false
++        onTriggered: switcherScope.closeSwitcher()
++    }
++
+     Process {
+         id: focusProcess
+         command: []
+@@ -142,32 +156,43 @@ Scope {
+         switcherScope.hudVisible = false;
+
+         var targetAddr = "";
++        var targetWantsMaximized = false;
++        var targetWorkspaceId = null;
+         if (index >= 0 && index < currentWindows.length) {
+             var target = currentWindows[index];
+             if (target && target.address) {
+                 targetAddr = target.address;
++                targetWantsMaximized = target.tags
++                    && target.tags.indexOf("serpantinum-wants-maximized") >= 0;
++                targetWorkspaceId = target.workspace ? target.workspace.id : null;
+             }
+         }
+
+         GlobalStates.appSwitcherOpen = false;
+
+         if (targetAddr !== "") {
+-            var activeFsMode = 0;
+-            for (var i = 0; i < currentWindows.length; i++) {
+-                var win = currentWindows[i];
+-                if (win && win.fullscreen && win.fullscreen > activeFsMode) {
+-                    activeFsMode = win.fullscreen;
+-                }
+-            }
+-
+             var luaScript = "local addr = 'address:" + targetAddr + "'; ";
+-            luaScript += "hl.dispatch(hl.dsp.focus({ window = addr })); ";
+-            if (activeFsMode > 0) {
+-                var modeStr = (activeFsMode === 2) ? "fullscreen" : "maximized";
+-                luaScript += "hl.dispatch(hl.dsp.window.fullscreen({ mode = '" + modeStr + "', action = 'set', window = addr })); ";
++            if (targetWantsMaximized) {
++                // Keep the old front window covering the target while its
++                // maximized geometry is restored, then reveal it atomically.
++                luaScript += "hl.dispatch(hl.dsp.window.alter_zorder({ mode = 'bottom', window = addr })); ";
++                luaScript += "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'maximized', action = 'set', window = addr })); ";
++            }
++            luaScript += "hl.dispatch(hl.dsp.focus({ window = addr })); ";
++            // Windows-like stacking: once the target state is restored, put
++            // every other window from that workspace behind it. Doing this
++            // after fullscreen transfer is important because Hyprland may
++            // restore the previous maximized window during that transfer.
++            for (var i = 0; i < currentWindows.length; i++) {
++                var other = currentWindows[i];
++                if (other && other.address !== targetAddr && other.workspace
++                    && other.workspace.id === targetWorkspaceId) {
++                    luaScript += "hl.dispatch(hl.dsp.window.alter_zorder({ mode = 'bottom', window = 'address:" + other.address + "' })); ";
++                }
+             }
+             luaScript += "hl.dispatch(hl.dsp.window.alter_zorder({ mode = 'top', window = addr })); ";
+
++            focusProcess.running = false;
+             focusProcess.command = ["hyprctl", "eval", luaScript];
+             focusProcess.running = true;
+         }
+@@ -176,6 +212,8 @@ Scope {
+     function closeSwitcher() {
+         displayTimer.stop();
+         quickTapCommitTimer.stop();
++        releaseCommitTimer.stop();
++        safetyCloseTimer.stop();
+         switcherScope.hudVisible = false;
+         GlobalStates.appSwitcherOpen = false;
+     }
+@@ -188,10 +211,12 @@ Scope {
+             GlobalStates.appSwitcherIndex = (currentWindows.length > 1) ? 1 : 0;
+             displayTimer.restart();
+             quickTapCommitTimer.restart();
++            safetyCloseTimer.restart();
+         } else {
+             quickTapCommitTimer.stop();
+             displayTimer.stop();
+             switcherScope.hudVisible = true;
++            safetyCloseTimer.restart();
+             if (currentWindows.length > 0) {
+                 GlobalStates.appSwitcherIndex = (GlobalStates.appSwitcherIndex + 1) % currentWindows.length;
+             }
+@@ -206,10 +231,12 @@ Scope {
+             GlobalStates.appSwitcherIndex = (currentWindows.length > 0) ? (currentWindows.length - 1) : 0;
+             displayTimer.restart();
+             quickTapCommitTimer.restart();
++            safetyCloseTimer.restart();
+         } else {
+             quickTapCommitTimer.stop();
+             displayTimer.stop();
+             switcherScope.hudVisible = true;
++            safetyCloseTimer.restart();
+             if (currentWindows.length > 0) {
+                 GlobalStates.appSwitcherIndex = (GlobalStates.appSwitcherIndex - 1 + currentWindows.length) % currentWindows.length;
+             }
+@@ -259,10 +286,6 @@ Scope {
+                 color: "#000000"
+                 opacity: (GlobalStates.appSwitcherOpen && switcherScope.hudVisible) ? 0.40 : 0.0
+
+-                Behavior on opacity {
+-                    NumberAnimation { duration: 140; easing.type: Easing.OutQuad }
+-                }
+-
+                 MouseArea {
+                     anchors.fill: parent
+                     acceptedButtons: Qt.LeftButton | Qt.RightButton
+@@ -314,6 +355,6 @@ Scope {
+                 Keys.onReleased: function(event) {
+                     if (event.key === Qt.Key_Alt || event.key === Qt.Key_AltGr || event.key === Qt.Key_Meta || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R) {
+                         if (GlobalStates.appSwitcherOpen) {
+-                            switcherScope.activateWindow(GlobalStates.appSwitcherIndex);
++                            releaseCommitTimer.restart();
+                             event.accepted = true;
+                         }
+@@ -357,10 +394,6 @@ Scope {
+                     NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                 }
+
+-                Behavior on opacity {
+-                    NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+-                }
+-
+                 Behavior on width {
+                     NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+                 }
+@@ -495,14 +514,6 @@ Scope {
+                                     scale: cardDelegate.isSelected ? 1.025 : 0.985
+                                     opacity: cardDelegate.isSelected ? 1.0 : 0.60
+
+-                                    Behavior on scale {
+-                                        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+-                                    }
+-
+-                                    Behavior on opacity {
+-                                        NumberAnimation { duration: 140; easing.type: Easing.OutQuad }
+-                                    }
+-
+                                     color: cardDelegate.isSelected
+                                         ? Qt.rgba(switcherScope.accentColor.r, switcherScope.accentColor.g, switcherScope.accentColor.b, 0.08)
+                                         : Qt.rgba(1.0, 1.0, 1.0, 0.025)
+@@ -529,7 +540,9 @@ Scope {
+                                         anchors.margins: 8
+                                         spacing: 8
+
+-                                        // Top Canvas: Crisp Framed 16:10 / 16:9 Live Window Preview
++                                        // Static app preview. Live ScreencopyView previews can
++                                        // deadlock the Qt/OpenGL path on some NVIDIA/Wayland
++                                        // systems, so Alt+Tab intentionally stays GPU-light.
+                                         Rectangle {
+                                             Layout.fillWidth: true
+                                             Layout.fillHeight: true
+@@ -537,19 +550,10 @@ Scope {
+                                             clip: true
+                                             color: "#080606"
+
+-                                            ScreencopyView {
+-                                                id: screencopy
+-                                                anchors.fill: parent
+-                                                captureSource: GlobalStates.appSwitcherOpen ? cardDelegate.toplevelSource : null
+-                                                live: GlobalStates.appSwitcherOpen
+-                                                visible: cardDelegate.toplevelSource !== null && GlobalStates.appSwitcherOpen
+-                                            }
+-
+                                             Image {
+                                                 anchors.centerIn: parent
+-                                                width: 56
+-                                                height: 56
+-                                                visible: cardDelegate.toplevelSource === null || !screencopy.hasContent
++                                                width: 72
++                                                height: 72
+                                                 source: Quickshell.iconPath(cardDelegate.friendlyIcon, "application-x-executable")
+                                                 fillMode: Image.PreserveAspectFit
+                                             }
+@@ -650,5 +654,5 @@ Scope {
+         function release(): void {
+             if (GlobalStates.appSwitcherOpen) {
+-                switcherScope.activateWindow(GlobalStates.appSwitcherIndex);
++                releaseCommitTimer.restart();
+             }
+         }

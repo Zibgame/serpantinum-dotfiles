@@ -26,6 +26,63 @@ local function restore_minimized()
 end
 
 ------------------------------------------------------------
+-- Per-window maximized intent (Windows-like Alt+Tab)
+------------------------------------------------------------
+-- Hyprland permits only one internally maximized window per workspace. Keep
+-- a tag on every window the user maximized, so the switcher can restore that
+-- window's own state without copying maximization to ordinary windows.
+local maximized_tag = "serpantinum-wants-maximized"
+local maximize_generation = 0
+local maximize_state_timers = {}
+
+local function window_has_tag(w, wanted)
+    for _, tag in ipairs((w and w.tags) or {}) do
+        if tag == wanted then return true end
+    end
+    return false
+end
+
+local function set_maximized_tag(w, enabled)
+    if not w or window_has_tag(w, maximized_tag) == enabled then return end
+    hl.dispatch(hl.dsp.window.tag({
+        tag = (enabled and "+" or "-") .. maximized_tag,
+        window = w,
+    }))
+end
+
+for _, existing_window in ipairs(hl.get_windows() or {}) do
+    local mode = tonumber(existing_window.fullscreen) or 0
+    if mode == 1 or mode == 3 then set_maximized_tag(existing_window, true) end
+end
+
+local maximized_state_subscription = hl.on("window.fullscreen", function(w)
+    if not w then return end
+    local mode = tonumber(w.fullscreen) or 0
+    if mode == 1 or mode == 3 then
+        maximize_generation = maximize_generation + 1
+        set_maximized_tag(w, true)
+        return
+    end
+
+    if mode ~= 0 or not window_has_tag(w, maximized_tag) then return end
+    local generation_at_restore = maximize_generation
+    local address = tostring(w.address or w)
+    if maximize_state_timers[address] then
+        maximize_state_timers[address]:set_enabled(false)
+    end
+    maximize_state_timers[address] = hl.timer(function()
+        maximize_state_timers[address] = nil
+        -- A different window becoming maximized immediately afterwards means
+        -- Hyprland transferred its exclusive max slot during Alt+Tab. Keep
+        -- both intentions. Otherwise this was an explicit user restore.
+        if generation_at_restore == maximize_generation and
+           tonumber(w.fullscreen) == 0 then
+            set_maximized_tag(w, false)
+        end
+    end, { timeout = 150, type = "oneshot" })
+end)
+
+------------------------------------------------------------
 -- Launchers
 ------------------------------------------------------------
 -- Terminal shortcuts live in hyprland.lua, so they are always registered.
@@ -40,6 +97,18 @@ hl.bind(mod .. " + Q", hl.dsp.window.close())
 local switcher = home .. "/.local/bin/serpantinum-app-switcher"
 hl.bind("ALT + Tab", hl.dsp.exec_cmd("'" .. switcher .. "' next"), { description = "Visual app switcher: next" })
 hl.bind("ALT + SHIFT + Tab", hl.dsp.exec_cmd("'" .. switcher .. "' prev"), { description = "Visual app switcher: previous" })
+-- Commit from Hyprland itself when Alt is released. A layer-shell surface can
+-- miss the modifier release while it is acquiring keyboard focus, leaving an
+-- invisible input-blocking overlay behind. These non-consuming global release
+-- binds make the switcher close reliably even in that race.
+local switcher_release_options = {
+    release = true,
+    locked = true,
+    non_consuming = true,
+    dont_inhibit = true,
+}
+hl.bind("Alt_L", hl.dsp.exec_cmd("'" .. switcher .. "' release"), switcher_release_options)
+hl.bind("Alt_R", hl.dsp.exec_cmd("'" .. switcher .. "' release"), switcher_release_options)
 
 ------------------------------------------------------------
 -- Windows/Ubuntu window snapping (floating windows)
@@ -49,10 +118,49 @@ hl.bind(mod .. " + right", hl.dsp.exec_cmd("'" .. snap .. "' right"))
 
 -- Super+Up maximizes immediately. Hyprland remembers the previous floating
 -- geometry, so Super+Down can walk back through the same states as Windows.
-hl.bind(mod .. " + up", hl.dsp.window.fullscreen({
-    action = "set",
-    mode = "maximized",
-}))
+local function window_near_cursor()
+    local cursor = hl.get_cursor_pos()
+    if not cursor then return nil end
+
+    local best = nil
+    local best_distance = math.huge
+    local best_focus = math.huge
+    for _, w in ipairs(hl.get_windows() or {}) do
+        if w.mapped and w.visible and not w.hidden then
+            local x = tonumber(w.at.x) or 0
+            local y = tonumber(w.at.y) or 0
+            local width = math.max(1, tonumber(w.size.x) or 1)
+            local height = math.max(1, tonumber(w.size.y) or 1)
+            local dx = math.max(x - cursor.x, 0, cursor.x - (x + width))
+            local dy = math.max(y - cursor.y, 0, cursor.y - (y + height))
+            local distance = dx * dx + dy * dy
+            local focus = tonumber(w.focus_history_id) or math.huge
+            -- Eight logical pixels cover borders/gaps at a split boundary.
+            if distance <= 64 and
+               (distance < best_distance or
+                (distance == best_distance and focus < best_focus)) then
+                best = w
+                best_distance = distance
+                best_focus = focus
+            end
+        end
+    end
+    return best
+end
+
+local function maximize_cursor_window()
+    local w = window_near_cursor() or hl.get_active_window()
+    if not w then return end
+    hl.dispatch(hl.dsp.focus({ window = w }))
+    hl.dispatch(hl.dsp.window.fullscreen({
+        action = "set",
+        mode = "maximized",
+        window = w,
+    }))
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = w }))
+end
+
+hl.bind(mod .. " + up", maximize_cursor_window)
 
 -- Super+Down follows a predictable state cycle:
 -- maximized/fullscreen -> restored -> unsnapped -> minimized.
@@ -191,8 +299,18 @@ end
 
 -- Normal Windows-style titlebar drag, without holding Super. Hyprland emits
 -- this event when dragging a maximized window by its titlebar restores it.
--- Only react while the pointer is in the top titlebar zone so keyboard
--- unmaximize operations keep their normal restore behaviour.
+-- Do not resize immediately: focus changes (including Alt+Tab) can emit the
+-- same fullscreen-exit event. Require both the cursor and window goal to move
+-- before recognizing this as a real mouse drag.
+local titlebar_detection_timer = nil
+
+local function stop_titlebar_detection()
+    if titlebar_detection_timer then
+        titlebar_detection_timer:set_enabled(false)
+        titlebar_detection_timer = nil
+    end
+end
+
 local titlebar_restore_subscription = hl.on("window.fullscreen", function(w)
     if not w or tonumber(w.fullscreen) ~= 0 then return end
 
@@ -227,11 +345,37 @@ local titlebar_restore_subscription = hl.on("window.fullscreen", function(w)
     drag_ratio_x = clamp((cursor.x - work_x) / math.max(1, work_width), 0, 1)
     drag_ratio_y = clamp((cursor.y - work_y) / math.max(1, work_height), 0, 1)
 
-    stop_drag_window()
-    dragged_window = w
-    drag_active = true
-    update_drag_window()
-    drag_timer = hl.timer(update_drag_window, { timeout = 16, type = "repeat" })
+    local start_cursor_x = cursor.x
+    local start_cursor_y = cursor.y
+    local start_window_x = tonumber(w.at.x) or 0
+    local start_window_y = tonumber(w.at.y) or 0
+    local checks = 0
+
+    stop_titlebar_detection()
+    titlebar_detection_timer = hl.timer(function()
+        checks = checks + 1
+        local current_cursor = hl.get_cursor_pos()
+        if not current_cursor or not w.mapped or tonumber(w.fullscreen) ~= 0 then
+            stop_titlebar_detection()
+            return
+        end
+
+        local cursor_moved = math.abs(current_cursor.x - start_cursor_x) > 2 or
+            math.abs(current_cursor.y - start_cursor_y) > 2
+        local window_moved = math.abs((tonumber(w.at.x) or 0) - start_window_x) > 2 or
+            math.abs((tonumber(w.at.y) or 0) - start_window_y) > 2
+
+        if cursor_moved and window_moved then
+            stop_titlebar_detection()
+            stop_drag_window()
+            dragged_window = w
+            drag_active = true
+            update_drag_window()
+            drag_timer = hl.timer(update_drag_window, { timeout = 16, type = "repeat" })
+        elseif checks >= 20 then
+            stop_titlebar_detection()
+        end
+    end, { timeout = 16, type = "repeat" })
 end)
 
 local function start_drag_window()
@@ -260,6 +404,7 @@ local function start_drag_window()
     -- keyboard snap so Super+Down cannot restore an obsolete position.
     hl.dispatch(hl.dsp.exec_cmd("'" .. snap .. "' forget"))
 
+    stop_titlebar_detection()
     stop_drag_window()
     dragged_window = w
     drag_active = true

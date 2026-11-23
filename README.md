@@ -173,8 +173,9 @@ serpantinum set theme app ghostty toggle
 * Hyprland has no native "minimize" concept; Serpantinum implements it with a
   hidden special workspace (`special:minimized`), like the official Hyprland
   snippet. Windows are restored with `Super+Shift+H`.
-* The Alt+Tab switcher cycles windows directly (no thumbnail overlay):
-  Wayland compositors do not expose Ubuntu's switcher UI.
+* The Alt+Tab switcher cycles windows directly (no thumbnail overlay): it
+  raises only the selected window and lowers the other windows on that
+  workspace without changing their position or size.
 * Snapping is pixel-based (`serpantinum-snap`) because windows are floating by
   design — there is no automatic tiling anywhere.
 * The console-first autostart (`tty1` → Hyprland) is guarded: it only runs on

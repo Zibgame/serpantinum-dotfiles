@@ -26,7 +26,7 @@ Ubuntu window-management conventions on a **floating** Hyprland desktop
 | `Super+Q` | Close window (convenience) |
 | `Super+Left` | Snap to the left half |
 | `Super+Right` | Snap to the right half |
-| `Super+Up` | Maximize immediately, like Windows and Ubuntu |
+| `Super+Up` | Focus and maximize the window under/nearest the cursor |
 | `Super+Down` | Restore maximize/fullscreen, restore pre-snap geometry, then minimize |
 | `Super+H` | Minimize (hidden `special:minimized` workspace) |
 | `Super+Shift+H` | Restore all minimized windows |
@@ -81,4 +81,11 @@ Hyprland's automatic cursor warp to the window center is disabled.
   workspace (official Hyprland pattern) and restores windows with
   `Super+Shift+H`.
 * Alt+Tab uses the Quickshell-based Hypr App Switcher installed by `./install.sh`.
-  Live window previews may be limited by the graphics backend in VirtualBox.
+  It places the selected window above every other window on its workspace and
+  lowers the others, without changing their geometry. It never copies
+  fullscreen, position or size from one window to another. A maximized-intent tag is kept
+  per window because Hyprland exposes only one active maximized slot per
+  workspace; switching between two previously maximized windows restores each
+  window's own maximized state. Live captures
+  are intentionally disabled to avoid Qt/OpenGL freezes on Wayland/NVIDIA;
+  the switcher uses static application icons and a five-second safety timeout.

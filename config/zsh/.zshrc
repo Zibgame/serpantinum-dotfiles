@@ -188,3 +188,16 @@ if [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/serpantinum/env.sh" ]]; then
   source "${XDG_CONFIG_HOME:-$HOME/.config}/serpantinum/env.sh"
 fi
 export PATH="$HOME/.npm-global/bin:$PATH"
+
+# Twitch directement dans Ghostty
+twitch() {
+    if [[ -z "$1" ]]; then
+        echo "Utilisation : twitch <streamer>"
+        return 1
+    fi
+
+    streamlink --player-verbose \
+        --player mpv \
+        --player-args="--no-config --vo=kitty --profile=sw-fast --really-quiet" \
+        "https://www.twitch.tv/${1}" best
+}
