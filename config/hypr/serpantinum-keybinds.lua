@@ -34,6 +34,8 @@ end
 local maximized_tag = "serpantinum-wants-maximized"
 local maximize_generation = 0
 local maximize_state_timers = {}
+local video_fullscreen_restore = {}
+local window_fullscreen_modes = {}
 
 local function window_has_tag(w, wanted)
     for _, tag in ipairs((w and w.tags) or {}) do
@@ -81,21 +83,56 @@ end
 
 for _, existing_window in ipairs(hl.get_windows() or {}) do
     local mode = tonumber(existing_window.fullscreen) or 0
+    window_fullscreen_modes[tostring(existing_window.address or existing_window)] = mode
     if mode == 1 or mode == 3 then set_maximized_tag(existing_window, true) end
 end
 
 local maximized_state_subscription = hl.on("window.fullscreen", function(w)
     if not w then return end
     local mode = tonumber(w.fullscreen) or 0
+    local address = tostring(w.address or w)
+    local previous_mode = window_fullscreen_modes[address] or 0
+    window_fullscreen_modes[address] = mode
+
     if mode == 1 or mode == 3 then
         maximize_generation = maximize_generation + 1
         set_maximized_tag(w, true)
+        video_fullscreen_restore[address] = nil
+        return
+    end
+
+    -- Applications use mode 2 for content fullscreen (Twitch, YouTube,
+    -- video players). If the window was maximized before entering it, retain
+    -- that intent and return to maximized instead of its old floating size.
+    if mode == 2 then
+        if window_has_tag(w, maximized_tag) or previous_mode == 1 or
+           previous_mode == 3 then
+            video_fullscreen_restore[address] = true
+        end
+        if maximize_state_timers[address] then
+            maximize_state_timers[address]:set_enabled(false)
+            maximize_state_timers[address] = nil
+        end
+        return
+    end
+
+    if mode == 0 and video_fullscreen_restore[address] then
+        video_fullscreen_restore[address] = nil
+        if maximize_state_timers[address] then
+            maximize_state_timers[address]:set_enabled(false)
+            maximize_state_timers[address] = nil
+        end
+        hl.timer(function()
+            if w.mapped and tonumber(w.fullscreen) == 0 and
+               window_has_tag(w, maximized_tag) then
+                restore_window_maximized(w)
+            end
+        end, { timeout = 1, type = "oneshot" })
         return
     end
 
     if mode ~= 0 or not window_has_tag(w, maximized_tag) then return end
     local generation_at_restore = maximize_generation
-    local address = tostring(w.address or w)
     if maximize_state_timers[address] then
         maximize_state_timers[address]:set_enabled(false)
     end
@@ -115,7 +152,16 @@ end)
 -- window's old floating geometry. Recover the next window's own maximized
 -- intent immediately, including closes performed with a titlebar button.
 local close_restore_timer = nil
-local close_restore_subscription = hl.on("window.destroy", function()
+local close_restore_subscription = hl.on("window.destroy", function(w)
+    if w then
+        local address = tostring(w.address or w)
+        window_fullscreen_modes[address] = nil
+        video_fullscreen_restore[address] = nil
+        if maximize_state_timers[address] then
+            maximize_state_timers[address]:set_enabled(false)
+            maximize_state_timers[address] = nil
+        end
+    end
     if close_restore_timer then close_restore_timer:set_enabled(false) end
     close_restore_timer = hl.timer(function()
         close_restore_timer = nil

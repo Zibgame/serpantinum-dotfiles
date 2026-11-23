@@ -80,6 +80,9 @@ Hyprland's automatic cursor warp to the window center is disabled.
 * Closing a maximized window with `Alt+F4`, `Super+Q` or its titlebar restores
   the underlying window's own maximized state instead of its old floating
   geometry.
+* Leaving application/content fullscreen (for example a Twitch or YouTube
+  player) returns a previously maximized window to maximized, not to its old
+  floating size.
 * Hyprland has no native minimize; Serpantinum uses a hidden special
   workspace (official Hyprland pattern) and restores windows with
   `Super+Shift+H`.
