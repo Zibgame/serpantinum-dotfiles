@@ -16,4 +16,6 @@ if [ "$#" -eq 0 ]; then
     set -- "https://www.google.com/"
 fi
 
-exec /usr/bin/chromium "$@"
+exec /usr/bin/chromium \
+    --extension-mime-request-handling=always-prompt-for-install \
+    "$@"

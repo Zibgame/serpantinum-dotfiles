@@ -44,7 +44,7 @@ serpantinum-dotfiles doctor
 | Alt+Tab | Quickshell carousel using the current machine's multi-workspace ordering |
 | Top bar | Open applications replace workspace indicators; click an app to focus it |
 | Ghostty | Primary terminal, with optional Serpantinum/Matugen palette sync |
-| Browser | Ungoogled Chromium (AUR on Arch), default browser with Google search/start page |
+| Browser | Ungoogled Chromium (AUR on Arch), working Chrome Web Store installs/updates, Google search/start page |
 | Codex | OpenAI Codex CLI installed for the user through npm |
 | Helpers | `serpantinum-terminal`, `serpantinum-snap`, `serpantinum-dotfiles` CLI |
 
