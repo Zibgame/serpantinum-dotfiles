@@ -100,8 +100,70 @@ hl.bind(mod .. " + F", hl.dsp.window.fullscreen({ action = "toggle" }))
 -- Mouse: move/resize floating windows
 ------------------------------------------------------------
 local drag_timer = nil
+local drag_active = false
+local dragged_window = nil
+local drag_ratio_x = 0.5
+local drag_ratio_y = 0
 
-local function drag_window()
+local function stop_drag_window()
+    drag_active = false
+    dragged_window = nil
+    if drag_timer then
+        drag_timer:set_enabled(false)
+        drag_timer = nil
+    end
+end
+
+local function update_drag_window()
+    if not drag_active or not dragged_window then
+        stop_drag_window()
+        return
+    end
+
+    local cursor = hl.get_cursor_pos()
+    local monitor = hl.get_monitor_at_cursor() or dragged_window.monitor
+    if not cursor or not monitor then return end
+
+    local scale = tonumber(monitor.scale) or 1
+    local monitor_width = (tonumber(monitor.width) or drag_width) / scale
+    local monitor_height = (tonumber(monitor.height) or drag_height) / scale
+    local transform = tonumber(monitor.transform) or 0
+    if transform == 1 or transform == 3 or transform == 5 or transform == 7 then
+        monitor_width, monitor_height = monitor_height, monitor_width
+    end
+
+    local reserved = monitor.reserved or {}
+    local reserved_left = tonumber(reserved[1]) or 0
+    local reserved_top = tonumber(reserved[2]) or 0
+    local reserved_right = tonumber(reserved[3]) or 0
+    local reserved_bottom = tonumber(reserved[4]) or 0
+    local work_x = (tonumber(monitor.x) or 0) + reserved_left
+    local work_y = (tonumber(monitor.y) or 0) + reserved_top
+    local work_width = math.max(1, monitor_width - reserved_left - reserved_right)
+    local work_height = math.max(1, monitor_height - reserved_top - reserved_bottom)
+    local target_width = math.min(drag_width, work_width)
+    local target_height = math.min(drag_height, work_height)
+    local target_x = math.floor(cursor.x - drag_ratio_x * target_width)
+    local target_y = math.floor(cursor.y - drag_ratio_y * target_height)
+    target_x = clamp(target_x, work_x, work_x + work_width - target_width)
+    target_y = clamp(target_y, work_y, work_y + work_height - target_height)
+
+    -- Reapply the dimensions at every cursor update. This prevents the old
+    -- floating/maximized geometry from coming back during the drag.
+    hl.dispatch(hl.dsp.window.resize({
+        x = target_width,
+        y = target_height,
+        window = dragged_window,
+    }))
+    hl.dispatch(hl.dsp.window.move({
+        x = target_x,
+        y = target_y,
+        relative = false,
+        window = dragged_window,
+    }))
+end
+
+local function start_drag_window()
     local w = hl.get_active_window()
     if not w then return end
 
@@ -112,8 +174,8 @@ local function drag_window()
     local window_y = tonumber(w.at.y) or 0
     local window_width = math.max(1, tonumber(w.size.x) or drag_width)
     local window_height = math.max(1, tonumber(w.size.y) or drag_height)
-    local cursor_ratio_x = clamp((cursor.x - window_x) / window_width, 0, 1)
-    local cursor_ratio_y = clamp((cursor.y - window_y) / window_height, 0, 1)
+    drag_ratio_x = clamp((cursor.x - window_x) / window_width, 0, 1)
+    drag_ratio_y = clamp((cursor.y - window_y) / window_height, 0, 1)
 
     local fullscreen = tonumber(w.fullscreen) or 0
     if fullscreen == 2 or fullscreen == 3 then
@@ -127,61 +189,17 @@ local function drag_window()
     -- keyboard snap so Super+Down cannot restore an obsolete position.
     hl.dispatch(hl.dsp.exec_cmd("'" .. snap .. "' forget"))
 
-    -- Start the compositor drag first. Hyprland applies its remembered
-    -- floating geometry at this point, so the forced 65x18 size must run on
-    -- the following frame rather than before this dispatcher.
-    hl.dispatch(hl.dsp.window.drag())
-
-    -- Apply the requested size after Hyprland has restored that old geometry.
-    if drag_timer then drag_timer:set_enabled(false) end
-    drag_timer = hl.timer(function()
-        local current_cursor = hl.get_cursor_pos()
-        local monitor = hl.get_monitor_at_cursor() or w.monitor
-        if not current_cursor or not monitor then
-            drag_timer = nil
-            return
-        end
-
-        local scale = tonumber(monitor.scale) or 1
-        local monitor_width = (tonumber(monitor.width) or drag_width) / scale
-        local monitor_height = (tonumber(monitor.height) or drag_height) / scale
-        local transform = tonumber(monitor.transform) or 0
-        if transform == 1 or transform == 3 or transform == 5 or transform == 7 then
-            monitor_width, monitor_height = monitor_height, monitor_width
-        end
-
-        local reserved = monitor.reserved or {}
-        local reserved_left = tonumber(reserved[1]) or 0
-        local reserved_top = tonumber(reserved[2]) or 0
-        local reserved_right = tonumber(reserved[3]) or 0
-        local reserved_bottom = tonumber(reserved[4]) or 0
-        local work_x = (tonumber(monitor.x) or 0) + reserved_left
-        local work_y = (tonumber(monitor.y) or 0) + reserved_top
-        local work_width = math.max(1, monitor_width - reserved_left - reserved_right)
-        local work_height = math.max(1, monitor_height - reserved_top - reserved_bottom)
-        local target_width = math.min(drag_width, work_width)
-        local target_height = math.min(drag_height, work_height)
-        local target_x = math.floor(current_cursor.x - cursor_ratio_x * target_width)
-        local target_y = math.floor(current_cursor.y - cursor_ratio_y * target_height)
-        target_x = clamp(target_x, work_x, work_x + work_width - target_width)
-        target_y = clamp(target_y, work_y, work_y + work_height - target_height)
-
-        hl.dispatch(hl.dsp.window.resize({
-            x = target_width,
-            y = target_height,
-            window = w,
-        }))
-        hl.dispatch(hl.dsp.window.move({
-            x = target_x,
-            y = target_y,
-            relative = false,
-            window = w,
-        }))
-        drag_timer = nil
-    end, { timeout = 50, type = "oneshot" })
+    -- Do not call Hyprland's native window.drag() here: it continuously
+    -- restores the previous floating size while the pointer moves.
+    stop_drag_window()
+    dragged_window = w
+    drag_active = true
+    update_drag_window()
+    drag_timer = hl.timer(update_drag_window, { timeout = 16, type = "repeat" })
 end
 
-hl.bind(mod .. " + mouse:272", drag_window, { mouse = true })
+hl.bind(mod .. " + mouse:272", start_drag_window, { mouse = true })
+hl.bind(mod .. " + mouse:272", stop_drag_window, { mouse = true, release = true })
 hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 ------------------------------------------------------------
