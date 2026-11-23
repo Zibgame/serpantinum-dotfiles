@@ -148,6 +148,9 @@ serpantinum set theme app ghostty toggle
 
 * Running `./install.sh` again only installs missing packages and refreshes
   configuration links.
+* If prebuilt Ungoogled Chromium temporarily expects the previous Arch
+  `simdutf` ABI, it is supplied only to Chromium; the VTE system library is not
+  downgraded.
 * Every existing file that would be replaced is copied to
   `~/.local/state/serpantinum/backups/<timestamp>/` first.
 * No private key is ever stored in this repository or on the target machine.

@@ -66,6 +66,38 @@ command -v /usr/bin/chromium >/dev/null 2>&1 || {
     return 0
 }
 
+# A prebuilt AUR release can briefly lag behind an Arch soname transition.
+# Keep the old library private to Chromium instead of downgrading the system
+# copy required by VTE and other applications.
+install_chromium_simdutf_compat() {
+    local binary="/usr/lib/chromium/chromium"
+    local missing="libsimdutf.so.36"
+    local compat_dir="${XDG_DATA_HOME:-$HOME/.local/share}/serpantinum/chromium-compat"
+    local cache_dir="$SERP_STATE_DIR/cache"
+    local archive="$cache_dir/simdutf-9.2.2-1-x86_64.pkg.tar.zst"
+    local archive_url="https://archive.archlinux.org/packages/s/simdutf/simdutf-9.2.2-1-x86_64.pkg.tar.zst"
+    local archive_sha256="68d5e2e7795e9036ce2f4a8855e3927c701fa365d6b552f55b0ebad5cd4e1150"
+
+    [[ -x "$binary" ]] || return 0
+    ldd "$binary" 2>/dev/null | grep -Fq "$missing => not found" || return 0
+
+    mkdir -p "$cache_dir" "$compat_dir"
+    if [[ ! -f "$archive" ]] || \
+       ! printf '%s  %s\n' "$archive_sha256" "$archive" | sha256sum --check --status; then
+        log_info "telechargement de la compatibilite simdutf pour Chromium"
+        curl -fL --retry 3 -o "$archive" "$archive_url"
+    fi
+    printf '%s  %s\n' "$archive_sha256" "$archive" | sha256sum --check --status || \
+        die "archive simdutf de compatibilite invalide"
+
+    bsdtar -xOf "$archive" usr/lib/libsimdutf.so.36.0.0 \
+        > "$compat_dir/libsimdutf.so.36.0.0"
+    ln -sfn libsimdutf.so.36.0.0 "$compat_dir/libsimdutf.so.36"
+    log_ok "compatibilite simdutf isolee pour Chromium"
+}
+
+install_chromium_simdutf_compat
+
 link_config "$SERP_ROOT/bin/chromium" "$HOME/.local/bin/chromium"
 link_config "$SERP_ROOT/config/applications/chromium.desktop" \
     "${XDG_DATA_HOME:-$HOME/.local/share}/applications/chromium.desktop"
