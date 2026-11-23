@@ -11,9 +11,12 @@ install.sh
   ├─ lib/detect.sh          distribution / user / Hyprland detection
   ├─ modules/00-preflight   network + state directories
   ├─ modules/10-packages    missing packages only (multi-distro)
+  ├─ modules/15-codex       user-local OpenAI Codex CLI installation
   ├─ modules/20-zsh         oh-my-zsh, .zshrc, login shell
   ├─ modules/25-kitty       kitty.conf + foot.ini (translucent terminals)
   ├─ modules/30-vim         vim-plug, .vimrc, PlugInstall
+  ├─ modules/35-hypr-app-switcher  visual multi-workspace Alt+Tab
+  ├─ modules/38-window-management  Windows/Ubuntu-style floating windows
   ├─ modules/40-hyprland    Lua modules + helpers + live reload
   ├─ modules/45-autostart   systemd user watcher (autostart fallback)
   ├─ modules/48-wallpaper-picker  native Vulkan effects for the wallpaper picker
@@ -57,12 +60,15 @@ Hyprland ≥ 0.57 uses Lua. `hyprland.lua` requires three modules:
 
 * `serpantinum-appearance.lua` — monitors, decorations (glass blur), input,
   autostart (`xdg-user-dirs`, VirtualBox clipboard, Serpantinum shell).
-* `serpantinum-rules.lua` — **floats every window** and centres it, plus the
-  glass-blur layer rules. This is what removes automatic tiling: there is
-  no Tiling Shell and no tiling layout in use.
-* `serpantinum-keybinds.lua` — Ubuntu-style shortcuts. Snapping and monitor
-  moves call `bin/serpantinum-snap`, which uses `hyprctl` JSON output and the
-  Lua dispatchers (`hl.dsp.window.move/resize`).
+* `modules/38-window-management.sh` installs the complete desktop window
+  behavior: `serpantinum-rules.lua`, `serpantinum-keybinds.lua` and
+  the snap and Alt+Tab launch helpers. The visual Alt+Tab sources remain the
+  responsibility of module 35.
+* `serpantinum-rules.lua` **floats every window** and centres it, plus the
+  glass-blur layer rules. This removes automatic tiling.
+* `serpantinum-keybinds.lua` defines snap, maximize, minimize/restore,
+  fullscreen, monitor moves, workspaces and mouse controls. The snap helper
+  stores pre-snap geometry under the Serpantinum state directory.
 
 ## State and data
 

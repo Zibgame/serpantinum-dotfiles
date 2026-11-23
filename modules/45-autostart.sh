@@ -14,10 +14,21 @@ if [[ ! -x "$SERP_DATA_DIR/bin/serpantinumd" ]]; then
     return 0
 fi
 
-command -v systemctl >/dev/null 2>&1 || \
-    die "systemctl introuvable: service d'autostart impossible"
+if ! command -v systemctl >/dev/null 2>&1; then
+    log_skip "watcher systemd ignore: systemctl absent (autostart Hyprland conserve)"
+    return 0
+fi
 
-systemctl --user daemon-reload
-systemctl --user enable serpantinum-dotfiles-autostart.service >/dev/null
-systemctl --user restart serpantinum-dotfiles-autostart.service
+if ! systemctl --user daemon-reload >/dev/null 2>&1; then
+    log_warn "watcher systemd ignore: session utilisateur systemd indisponible"
+    return 0
+fi
+if ! systemctl --user enable serpantinum-dotfiles-autostart.service >/dev/null 2>&1; then
+    log_warn "activation du watcher systemd impossible (autostart Hyprland conserve)"
+    return 0
+fi
+if ! systemctl --user restart serpantinum-dotfiles-autostart.service >/dev/null 2>&1; then
+    log_warn "demarrage du watcher systemd impossible (il sera retente a la prochaine session)"
+    return 0
+fi
 log_ok "Service d'autostart active (systemd utilisateur)"

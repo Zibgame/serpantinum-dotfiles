@@ -10,6 +10,11 @@
 #
 # Idempotent: a marker property detects previous runs.
 
+if [[ "${SERP_SKIP_WALLPAPER_PATCHES:-0}" -eq 1 ]]; then
+    log_skip "patch du moteur wallpaper ignore (--no-wallpaper-patches)"
+    return 0
+fi
+
 WallpaperEngineFix_apply() {
     local engine="$SERP_DATA_DIR/src/quickshell/wallpaper/WallpaperEngine.qml"
     if [[ ! -f "$engine" ]]; then

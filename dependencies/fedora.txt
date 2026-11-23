@@ -5,6 +5,9 @@
 # Desktop / window management
 hyprland
 kitty
+foot
+ghostty
+quickshell
 wofi
 grim
 slurp
@@ -17,6 +20,8 @@ mesa-vulkan-drivers
 zsh
 git
 curl
+nodejs
+npm
 
 # Editor
 vim

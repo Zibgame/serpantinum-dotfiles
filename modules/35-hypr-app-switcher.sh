@@ -2,10 +2,42 @@
 # 35 — Hypr App Switcher: install/update the upstream Quickshell Alt+Tab UI.
 # The repository's install.sh sources modules/*.sh after installing Serpantinum.
 
+if [[ "${SERP_SKIP_APP_SWITCHER:-0}" -eq 1 ]]; then
+    log_skip "Hypr App Switcher ignore (--no-app-switcher)"
+    return 0
+fi
+
+install_switcher_dependencies() {
+    if command -v git >/dev/null 2>&1 && \
+       { command -v qs >/dev/null 2>&1 || command -v quickshell >/dev/null 2>&1; }; then
+        return 0
+    fi
+
+    if [[ "${SERP_SKIP_PACKAGES:-0}" -eq 1 || "$SERP_PKG_FAMILY" == "none" ]]; then
+        return 0
+    fi
+
+    local missing=() package
+    command -v git >/dev/null 2>&1 || missing+=(git)
+    if ! command -v qs >/dev/null 2>&1 && ! command -v quickshell >/dev/null 2>&1; then
+        package=quickshell
+        if pkg_available "$package"; then
+            missing+=("$package")
+        fi
+    fi
+
+    if (( ${#missing[@]} > 0 )); then
+        log_info "dependances Alt+Tab manquantes: ${missing[*]}"
+        pkg_install "${missing[@]}"
+    fi
+}
+
 install_hypr_app_switcher() {
     local repo="https://github.com/anshifmonz/hypr-app-switcher.git"
     local dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
+    local patch="$SERP_ROOT/patches/hypr-app-switcher-all-workspaces.patch"
     local origin
+    local managed_patch_removed=0
 
     if [[ -d "$dir/.git" ]]; then
         origin="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
@@ -17,8 +49,19 @@ install_hypr_app_switcher() {
                 return 0
                 ;;
         esac
+
+        # Temporarily remove our reproducible patch so the upstream checkout
+        # can be updated cleanly. Other local edits remain untouched.
+        if [[ -f "$patch" ]] && git -C "$dir" apply --reverse --check "$patch" >/dev/null 2>&1; then
+            git -C "$dir" apply --reverse "$patch"
+            managed_patch_removed=1
+        fi
+
         log_info "Mise a jour de Hypr App Switcher"
         if ! git -C "$dir" pull --ff-only; then
+            if (( managed_patch_removed )); then
+                git -C "$dir" apply "$patch" || true
+            fi
             log_warn "hypr-app-switcher: mise a jour impossible, copie existante conservee"
         fi
     elif [[ -e "$dir" ]]; then
@@ -38,10 +81,22 @@ install_hypr_app_switcher() {
         return 0
     fi
 
+    if [[ -f "$patch" ]]; then
+        if git -C "$dir" apply --reverse --check "$patch" >/dev/null 2>&1; then
+            log_skip "selection Alt+Tab multi-workspaces deja appliquee"
+        elif git -C "$dir" apply --check "$patch" >/dev/null 2>&1; then
+            git -C "$dir" apply "$patch"
+            log_ok "selection Alt+Tab multi-workspaces appliquee"
+        else
+            log_warn "patch Alt+Tab incompatible avec cette version upstream"
+        fi
+    fi
+
     if ! command -v qs >/dev/null 2>&1 && ! command -v quickshell >/dev/null 2>&1; then
         log_warn "hypr-app-switcher installe mais Quickshell est absent (qs/quickshell)"
     fi
     log_ok "Hypr App Switcher disponible dans $dir"
 }
 
+install_switcher_dependencies
 install_hypr_app_switcher

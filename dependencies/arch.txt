@@ -5,6 +5,8 @@
 hyprland
 kitty
 foot
+ghostty
+quickshell
 wofi
 grim
 slurp
@@ -16,6 +18,8 @@ vulkan-swrast
 zsh
 git
 curl
+nodejs
+npm
 
 # Editor
 vim

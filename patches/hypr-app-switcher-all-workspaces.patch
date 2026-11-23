@@ -1,0 +1,24 @@
+diff --git a/modules/appswitcher/AppSwitcher.qml b/modules/appswitcher/AppSwitcher.qml
+index 367ad90..3eed3fc 100644
+--- a/modules/appswitcher/AppSwitcher.qml
++++ b/modules/appswitcher/AppSwitcher.qml
+@@ -53,10 +53,15 @@ Scope {
+         }
+     }
+ 
+-    readonly property var currentWindows: WorkspaceSelection.windowsForWorkspace(
+-        HyprlandData.windowList,
+-        switcherScope.targetWorkspace
+-    )
++    readonly property var currentWindows: {
++        return HyprlandData.windowList
++            .filter(w => w && !w.hidden && w.workspace && w.workspace.id > 0)
++            .sort((a, b) => {
++                const ai = a.focusHistoryID >= 0 ? a.focusHistoryID : 999999;
++                const bi = b.focusHistoryID >= 0 ? b.focusHistoryID : 999999;
++                return ai - bi;
++            });
++    }
+ 
+     function findToplevel(addr) {
+         if (!addr || !ToplevelManager.toplevels) return null;

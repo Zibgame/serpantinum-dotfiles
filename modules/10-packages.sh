@@ -27,9 +27,10 @@ if [[ "$SERP_PKG_FAMILY" == "debian" ]] && ! apt-cache show git >/dev/null 2>&1;
 fi
 
 # Fedora/SUSE: refresh repository metadata for the availability checks.
-if [[ "$SERP_PKG_FAMILY" == "fedora" ]] && ! dnf -q list available git >/dev/null 2>&1; then
-    log_info "rafraichissement des depots (makecache)"
-    sudo_run dnf -q makecache 2>/dev/null || true
+if [[ "$SERP_PKG_FAMILY" == "fedora" ]] && \
+   ! "$SERP_PKG_CMD" -q list available git >/dev/null 2>&1; then
+    log_info "rafraichissement des depots ($SERP_PKG_CMD makecache)"
+    sudo_run "$SERP_PKG_CMD" -q makecache 2>/dev/null || true
 fi
 
 missing=()

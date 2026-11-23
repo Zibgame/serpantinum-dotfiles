@@ -7,6 +7,11 @@
 # layer can stay enabled and Serpantinum keeps its masks, rounded corners,
 # complete gallery and native animations.
 
+if [[ "${SERP_SKIP_WALLPAPER_PATCHES:-0}" -eq 1 ]]; then
+    log_skip "patch du wallpaper picker ignore (--no-wallpaper-patches)"
+    return 0
+fi
+
 WallpaperPickerNative_restore() {
     local picker="$SERP_DATA_DIR/src/quickshell/wallpaper/WallpaperPicker.qml"
     if [[ ! -f "$picker" ]]; then

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Serpantinum — Ubuntu-like window snapping for floating windows.
+# Serpantinum — Windows/Ubuntu-like window snapping for floating windows.
 #
-# Usage: serpantinum-snap left|right|top|max|center|ensure-visible|monitor-left|monitor-right
+# Usage: serpantinum-snap left|right|top|max|center|down|minimize|restore|forget|ensure-visible|monitor-left|monitor-right
 set -euo pipefail
 
 mode="${1:-}"
 case "$mode" in
-    left|right|top|max|center|ensure-visible|monitor-left|monitor-right) ;;
+    left|right|top|max|center|down|minimize|restore|forget|ensure-visible|monitor-left|monitor-right) ;;
     *)
-        echo "usage: serpantinum-snap left|right|top|max|center|ensure-visible|monitor-left|monitor-right" >&2
+        echo "usage: serpantinum-snap left|right|top|max|center|down|minimize|restore|forget|ensure-visible|monitor-left|monitor-right" >&2
         exit 2
         ;;
 esac
@@ -20,21 +20,121 @@ if [[ "$mode" == "ensure-visible" ]]; then
     sleep 0.2
 fi
 
-addr="$(hyprctl -j activewindow | python3 -c 'import json,sys; print(json.load(sys.stdin).get("address",""))')"
+window_json="$(hyprctl -j activewindow)"
+read -r addr window_pid fullscreen <<<"$(printf '%s' "$window_json" | python3 -c '
+import json, sys
+window = json.load(sys.stdin)
+print(window.get("address", ""), window.get("pid", 0), window.get("fullscreen", 0))
+')"
 [[ -n "$addr" ]] || exit 0
+
+geometry_dir="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum/window-geometry"
+geometry_file="$geometry_dir/${addr#0x}"
+
+save_geometry() {
+    local saved_pid="" x y w h temp_file
+    if [[ -f "$geometry_file" ]]; then
+        read -r saved_pid _ < "$geometry_file" || true
+        [[ "$saved_pid" == "$window_pid" ]] && return 0
+    fi
+
+    read -r x y w h <<<"$(hyprctl -j activewindow | python3 -c '
+import json, sys
+window = json.load(sys.stdin)
+x, y = window.get("at") or (0, 0)
+w, h = window.get("size") or (1, 1)
+print(int(x), int(y), int(w), int(h))
+')"
+    mkdir -p "$geometry_dir"
+    temp_file="$geometry_file.$$.tmp"
+    printf '%s %s %s %s %s\n' "$window_pid" "$x" "$y" "$w" "$h" > "$temp_file"
+    mv -f "$temp_file" "$geometry_file"
+}
+
+restore_geometry() {
+    local saved_pid x y w h value
+    [[ -f "$geometry_file" ]] || return 1
+    read -r saved_pid x y w h < "$geometry_file" || return 1
+    [[ "$saved_pid" == "$window_pid" ]] || return 1
+    for value in "$x" "$y" "$w" "$h"; do
+        [[ "$value" =~ ^-?[0-9]+$ ]] || return 1
+    done
+    (( w > 0 && h > 0 )) || return 1
+
+    hyprctl dispatch "hl.dsp.window.resize({ x = $w, y = $h, window = 'address:$addr' })" >/dev/null
+    hyprctl dispatch "hl.dsp.window.move({ x = $x, y = $y, relative = false, window = 'address:$addr' })" >/dev/null
+    rm -f "$geometry_file"
+}
+
+minimize_window() {
+    hyprctl dispatch "hl.dsp.window.tag({ tag = '+minimized', window = 'address:$addr' })" >/dev/null
+    hyprctl dispatch "hl.dsp.window.move({ workspace = 'special:minimized', follow = false, window = 'address:$addr' })" >/dev/null
+}
+
+if [[ "$mode" == "forget" ]]; then
+    rm -f "$geometry_file"
+    exit 0
+fi
+
+if [[ "$mode" == "minimize" ]]; then
+    minimize_window
+    exit 0
+fi
+
+if [[ "$mode" == "restore" ]]; then
+    if restore_geometry; then
+        sleep 0.1
+        exec "$0" ensure-visible
+    fi
+    exit 0
+fi
+
+# Super+Down follows the Windows/Ubuntu state cycle. Native maximize and
+# fullscreen states are restored first. A snapped window then returns to its
+# saved floating geometry. A normal window is minimized on the final press.
+if [[ "$mode" == "down" ]]; then
+    case "${fullscreen:-0}" in
+        1)
+            hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null
+            sleep 0.2
+            exec "$0" ensure-visible
+            ;;
+        2)
+            hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null
+            sleep 0.2
+            exec "$0" ensure-visible
+            ;;
+        3)
+            hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null
+            hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null
+            sleep 0.2
+            exec "$0" ensure-visible
+            ;;
+    esac
+
+    if restore_geometry; then
+        sleep 0.1
+        exec "$0" ensure-visible
+    fi
+    minimize_window
+    exit 0
+fi
 
 # A maximized/fullscreen window refuses move/resize: restore it first.
 # The fullscreen dispatcher only acts on the active window (no window selector).
 #   fs 1 = maximized  -> unset with mode 1
 #   fs 2 = fullscreen -> plain unset
 #   fs 3 = both       -> both
-fullscreen="$(hyprctl -j activewindow | python3 -c 'import json,sys; print(json.load(sys.stdin).get("fullscreen",0))')"
 case "${fullscreen:-0}" in
     1) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null; sleep 0.3 ;;
     2) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null; sleep 0.3 ;;
     3) hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset' })" >/dev/null
        hyprctl dispatch "hl.dsp.window.fullscreen({ action = 'unset', mode = 1 })" >/dev/null
        sleep 0.3 ;;
+esac
+
+case "$mode" in
+    left|right|top|max|center) save_geometry ;;
 esac
 
 if [[ "$mode" == monitor-* ]]; then
@@ -143,9 +243,8 @@ case "$mode" in
         x=$((mx + mw / 2)); y=$my; w=$((mw / 2)); h=$mh
         ;;
     top)
-        # Super+Up: normal window -> upper half; upper half or either
-        # full-height side snap -> expand to the complete work area.
-        # Detect per-window geometry; do not alter left/right shortcuts.
+        # Legacy top-half mode retained for direct callers. Super+Up now uses
+        # Hyprland's native maximized state from serpantinum-keybinds.lua.
         top_state="$(hyprctl -j activewindow | python3 -c '
 import json, sys
 window = json.load(sys.stdin)

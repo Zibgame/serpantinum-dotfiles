@@ -5,6 +5,9 @@
 # Desktop / window management
 hyprland
 kitty
+foot
+ghostty
+quickshell
 wofi
 grim
 slurp
@@ -16,6 +19,8 @@ libvulkan_lvp
 zsh
 git
 curl
+nodejs
+npm
 
 # Editor
 vim

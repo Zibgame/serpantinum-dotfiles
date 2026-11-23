@@ -2,10 +2,56 @@
 
 local home = os.getenv("HOME")
 
-hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+-- ==========================================
+-- MONITORS
+-- ==========================================
+
+-- Secondary monitor: iiyama, portrait, left
+hl.monitor({
+    output = "DP-1",
+    mode = "1920x1080@60",
+    position = "1920x0",
+    scale = 1,
+    transform = 1
+})
+
+-- Primary monitor: AOC, landscape, right
+hl.monitor({
+    output = "HDMI-A-1",
+    mode = "1920x1080@239.96",
+    position = "0x0",
+    scale = 1,
+    transform = 0
+})
+
+-- ==========================================
+-- WORKSPACES
+-- ==========================================
+
+-- Main workspace on AOC
+hl.workspace_rule({
+    workspace = "1",
+    monitor = "HDMI-A-1",
+    default = true
+})
+
+-- Secondary workspace on iiyama
+hl.workspace_rule({
+    workspace = "2",
+    monitor = "DP-1",
+    default = true
+})
+
+-- ==========================================
+-- ENVIRONMENT
+-- ==========================================
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
+
+-- ==========================================
+-- APPEARANCE AND INPUT
+-- ==========================================
 
 hl.config({
     general = {
@@ -15,7 +61,13 @@ hl.config({
         resize_on_border = true,
         layout = "dwindle",
         col = {
-            active_border = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 },
+            active_border = {
+                colors = {
+                    "rgba(33ccffee)",
+                    "rgba(00ff99ee)"
+                },
+                angle = 45
+            },
             inactive_border = "rgba(595959aa)",
         },
     },
@@ -30,8 +82,6 @@ hl.config({
         },
         blur = {
             enabled = true,
-            -- Signature glass look: multi-pass blur with vibrancy, noise and
-            -- contrast tuning (the community "aesthetic" recipe).
             size = 6,
             passes = 3,
             vibrancy = 0.17,
@@ -39,8 +89,6 @@ hl.config({
             noise = 0.0117,
             contrast = 0.8916,
             brightness = 1.0,
-            -- Opaque windows stay crisp; translucent ones (terminals, panels)
-            -- get the full glass effect.
             ignore_opacity = false,
             xray = false,
             special = false,
@@ -51,23 +99,42 @@ hl.config({
     input = {
         kb_layout = "us",
         follow_mouse = 1,
-        touchpad = { natural_scroll = true },
+        touchpad = {
+            natural_scroll = true
+        },
+    },
+
+    binds = {
+        -- Keep the exact point grabbed by the mouse when a window is restored
+        -- and resized at the beginning of a drag.
+        drag_center_window = false,
     },
 
     misc = {
         force_default_wallpaper = -1,
         disable_hyprland_logo = true,
     },
+    cursor = {
+        no_hardware_cursors = 1,
+    },
 })
 
+-- ==========================================
+-- AUTOSTART
+-- ==========================================
+
 hl.on("hyprland.start", function()
-    -- The systemd user autostart watcher runs the shell using hyprctl eval
-    -- after the Hyprland Wayland session becomes available.
+    -- Create standard user directories
     hl.exec_cmd("xdg-user-dirs-update")
-    -- VirtualBox guests: clipboard sharing between host and guest.
-    hl.exec_cmd("command -v VBoxClient >/dev/null 2>&1 && VBoxClient --clipboard")
-    -- Official Serpantinum shell. The autostart script rebuilds the missing
-    -- Hyprland/Wayland environment itself, so it works from exec-once, tty1
-    -- or a manual launch without "serpantinum does not start" surprises.
-    hl.exec_cmd("sh -c '" .. home .. "/.local/bin/serpantinum-autostart.sh'")
+
+    -- VirtualBox clipboard support
+    hl.exec_cmd(
+        "command -v VBoxClient >/dev/null 2>&1 && VBoxClient --clipboard"
+    )
+
+    -- Serpantinum startup
+    hl.exec_cmd(
+        "sh -c '" .. home .. "/.local/bin/serpantinum-autostart.sh'"
+    )
+    hl.exec_cmd("sh -c '" .. home .. "/.local/bin/serpantinum-app-switcher start &'")
 end)

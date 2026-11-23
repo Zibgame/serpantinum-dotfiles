@@ -6,14 +6,12 @@ mkdir -p "$HYPR_CONFIG_DIR" "$HOME/.local/bin"
 
 for module in \
     hyprland.lua \
-    serpantinum-appearance.lua \
-    serpantinum-rules.lua \
-    serpantinum-keybinds.lua
+    serpantinum-appearance.lua
 do
     link_config "$SERP_ROOT/config/hypr/$module" "$HYPR_CONFIG_DIR/$module"
 done
 
-for helper in serpantinum-terminal serpantinum-snap serpantinum-shell serpantinum-app-switcher; do
+for helper in serpantinum-terminal serpantinum-shell; do
     link_config "$SERP_ROOT/bin/$helper" "$HOME/.local/bin/$helper"
 done
 

@@ -1,8 +1,8 @@
 # Keyboard shortcuts
 
 Terminal shortcuts are defined in `config/hypr/hyprland.lua`; other shortcuts are
-defined in `config/hypr/serpantinum-keybinds.lua`. They follow
-Ubuntu's window-management conventions on a **floating** Hyprland desktop
+defined in `config/hypr/serpantinum-keybinds.lua`. They follow Windows and
+Ubuntu window-management conventions on a **floating** Hyprland desktop
 (no Tiling Shell, no automatic tiling).
 
 ## Launchers
@@ -26,8 +26,8 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | `Super+Q` | Close window (convenience) |
 | `Super+Left` | Snap to the left half |
 | `Super+Right` | Snap to the right half |
-| `Super+Up` | First press: upper half; second press: full work area below the top bar |
-| `Super+Down` | Restore maximized/fullscreen window; otherwise do nothing (never minimize or close) |
+| `Super+Up` | Maximize immediately, like Windows and Ubuntu |
+| `Super+Down` | Restore maximize/fullscreen, restore pre-snap geometry, then minimize |
 | `Super+H` | Minimize (hidden `special:minimized` workspace) |
 | `Super+Shift+H` | Restore all minimized windows |
 | `Super+V` | Toggle floating |
@@ -35,12 +35,18 @@ Ubuntu's window-management conventions on a **floating** Hyprland desktop
 | `Super+Shift+Left` | Move window to the monitor on the left |
 | `Super+Shift+Right` | Move window to the monitor on the right |
 
-`Super+Left`, `Super+Right` and `Super+Up` use the available monitor work area below the
+`Super+Left` and `Super+Right` use the available monitor work area below the
 Serpantinum top bar, while keeping all windows floating. The fallback top bar
 height is 32px if Hyprland has not reserved the panel; override it with
 `SERPANTINUM_TOP_BAR_HEIGHT` if your bar size differs.
-| `Super+LMB drag` | Move window |
+| `Super+LMB drag` | Resize to Ghostty 65×18, then move window |
 | `Super+RMB drag` | Resize window |
+
+On the current Ghostty configuration, 65×18 terminal cells correspond to a
+660×428 pixel client window. This calibrated size is applied before the mouse
+drag begins. The cursor keeps its relative position inside the restored window,
+and the result is clamped to the usable monitor area below the top bar.
+Hyprland's automatic cursor warp to the window center is disabled.
 
 ## Workspaces
 
@@ -69,8 +75,8 @@ height is 32px if Hyprland has not reserved the panel; override it with
 
 ## Notes
 
-* `Super+Down` restores maximized/fullscreen windows and leaves already-normal
-  floating windows untouched. Use `Super+H` to minimize explicitly.
+* Repeated `Super+Down` walks backwards through the window states and finally
+  minimizes the window. `Super+H` minimizes it immediately.
 * Hyprland has no native minimize; Serpantinum uses a hidden special
   workspace (official Hyprland pattern) and restores windows with
   `Super+Shift+H`.

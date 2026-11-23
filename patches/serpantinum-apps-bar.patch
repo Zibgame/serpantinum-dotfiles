@@ -1,0 +1,12 @@
+diff --git a/bar/BarModuleRegistry.qml b/bar/BarModuleRegistry.qml
+--- a/bar/BarModuleRegistry.qml
++++ b/bar/BarModuleRegistry.qml
+@@ -45,7 +45,7 @@ QtObject {
+             name: typeof I18n !== "undefined" ? I18n.t("guide.bar.modules.workspaces.name", "Workspaces") : "Workspaces",
+             icon: "󰮯",
+             defaultVariant: "pills",
+-            face: "faces/workspaces/WorkspacesFace.qml",
++            face: "faces/apps/AppsFace.qml",
+             variants: {
+                 "pills": {
+                     id: "pills",

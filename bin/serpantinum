@@ -43,10 +43,35 @@ case "${1:-status}" in
         else
             echo "  (distribution non reconnue: verification des paquets ignoree)"
         fi
+        echo "-- applications --"
+        for app in ghostty; do
+            if command -v "$app" >/dev/null 2>&1; then
+                printf '  ok      %-10s %s\n' "$app" "$(command -v "$app")"
+            else
+                printf '  manque  %s\n' "$app"
+            fi
+        done
+        codex_bin="$(command -v codex 2>/dev/null || true)"
+        if [[ -z "$codex_bin" && -x "$HOME/.npm-global/bin/codex" ]]; then
+            codex_bin="$HOME/.npm-global/bin/codex"
+        fi
+        if [[ -n "$codex_bin" ]]; then
+            printf '  ok      %-10s %s\n' codex "$codex_bin"
+        else
+            printf '  manque  codex\n'
+        fi
+        if command -v qs >/dev/null 2>&1 || command -v quickshell >/dev/null 2>&1; then
+            printf '  ok      quickshell\n'
+        else
+            printf '  manque  quickshell (requis pour Alt+Tab)\n'
+        fi
         echo "-- liens --"
         for f in "$HOME/.zshrc" "$HOME/.vimrc" \
                  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua" \
-                 "$HOME/.local/bin/serpantinum-snap"; do
+                 "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/serpantinum-rules.lua" \
+                 "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/serpantinum-keybinds.lua" \
+                 "$HOME/.local/bin/serpantinum-snap" \
+                 "$HOME/.local/bin/serpantinum-app-switcher"; do
             if [[ -L "$f" && -e "$f" ]]; then
                 printf '  ok      %s -> %s\n' "$f" "$(readlink "$f")"
             elif [[ -e "$f" ]]; then

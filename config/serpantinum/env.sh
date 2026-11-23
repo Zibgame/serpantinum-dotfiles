@@ -9,6 +9,10 @@ case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
     *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
+case ":$PATH:" in
+    *":$HOME/.npm-global/bin:"*) ;;
+    *) export PATH="$HOME/.npm-global/bin:$PATH" ;;
+esac
 
 # No display manager: log in on tty1 and Hyprland starts immediately.
 # Guarded so it never runs inside an existing Wayland session or on another TTY.

@@ -181,12 +181,10 @@ alias francinette="$HOME/francinette/tester.sh"
 alias paco="$HOME/francinette/tester.sh"
 alias dev='cd ~ && cd Documents && clear && ls'
 
-# Nettoyeur local optionnel (l'ancien chemin absolu /home/zcadinot a ete retire)
-[[ -x "$HOME/.local/bin/cleaner" ]] && "$HOME/.local/bin/cleaner" >/dev/null 2>&1 || true
-
 ############################################################
 # 8. SERPANTINUM
 ############################################################
 if [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/serpantinum/env.sh" ]]; then
   source "${XDG_CONFIG_HOME:-$HOME/.config}/serpantinum/env.sh"
 fi
+export PATH="$HOME/.npm-global/bin:$PATH"

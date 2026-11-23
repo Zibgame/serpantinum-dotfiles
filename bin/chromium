@@ -1,0 +1,19 @@
+#!/bin/sh
+# Keep the browser reproducible through the dotfiles and open Google when
+# Chromium is launched without a URL (links from other applications are kept).
+compat_dir="${XDG_DATA_HOME:-$HOME/.local/share}/serpantinum/chromium-compat"
+legacy_compat_dir="$HOME/.local/lib/ungoogled-chromium-compat"
+
+if [ ! -d "$compat_dir" ] && [ -d "$legacy_compat_dir" ]; then
+    compat_dir="$legacy_compat_dir"
+fi
+
+if [ -d "$compat_dir" ]; then
+    export LD_LIBRARY_PATH="${compat_dir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
+
+if [ "$#" -eq 0 ]; then
+    set -- "https://www.google.com/"
+fi
+
+exec /usr/bin/chromium "$@"

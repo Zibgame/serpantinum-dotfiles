@@ -86,10 +86,20 @@ detect_environment() {
         SERP_PKG_CMD=""
     fi
 
-    command -v git >/dev/null 2>&1 || die "git est introuvable"
+    # git is part of every dependency list and may legitimately be absent on a
+    # fresh system before modules/10-packages.sh has run.
+    command -v git >/dev/null 2>&1 || \
+        log_warn "git est absent: le module paquets tentera de l'installer"
 
     if [[ $EUID -ne 0 ]]; then
-        command -v sudo >/dev/null 2>&1 || die "sudo est introuvable"
+        if [[ -n "${SERP_SUDO:-}" ]]; then
+            local privilege_cmd="${SERP_SUDO%% *}"
+            command -v "$privilege_cmd" >/dev/null 2>&1 || \
+                die "commande d'elevation introuvable: $privilege_cmd (SERP_SUDO)"
+        else
+            command -v sudo >/dev/null 2>&1 || \
+                die "sudo est introuvable (configure SERP_SUDO=doas si necessaire)"
+        fi
         if [[ -z "${SERP_SUDO:-}" ]] && ! sudo -n true 2>/dev/null; then
             log_warn "sudo demandera un mot de passe (lance 'sudo -v' avant pour une installation non interactive)"
         fi

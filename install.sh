@@ -41,10 +41,18 @@ Usage: ./install.sh [options]
 Options:
   -h, --help       Show this help.
   --status         Show current installation status.
+  --doctor         Check dependencies, links and installation state.
   --no-packages    Skip package installation and upstream install.
   --no-upstream    Skip official Serpantinum installation.
   --no-shell       Do not change the login shell to Zsh.
   --no-vim         Skip Vim plugin installation.
+  --no-codex       Skip OpenAI Codex installation.
+  --no-app-switcher
+                   Skip the visual Alt+Tab switcher.
+  --no-wallpaper-patches
+                   Keep the official wallpaper QML files unchanged.
+  --app-switcher-only
+                   Install/update only the visual Alt+Tab switcher.
 
 Supported distributions (package manager detected automatically):
   Arch family : Arch, BlackArch, EndeavourOS, Manjaro, CachyOS, Garuda, Artix
@@ -65,6 +73,9 @@ parse_args() {
     SERP_SKIP_UPSTREAM=0
     SERP_SKIP_SHELL=0
     SERP_SKIP_VIM=0
+    SERP_SKIP_CODEX=0
+    SERP_SKIP_APP_SWITCHER=0
+    SERP_SKIP_WALLPAPER_PATCHES=0
     SERP_ONLY_APP_SWITCHER=0
 
     local arg
@@ -72,10 +83,14 @@ parse_args() {
         case "$arg" in
             -h|--help)       usage; exit 0 ;;
             --status)        source "$SERP_ROOT/lib/status.sh"; print_status; exit 0 ;;
+            --doctor)        exec "$SERP_ROOT/bin/serpantinum" doctor ;;
             --no-packages)   SERP_SKIP_PACKAGES=1 ;;
             --no-upstream)   SERP_SKIP_UPSTREAM=1 ;;
             --no-shell)      SERP_SKIP_SHELL=1 ;;
             --no-vim)        SERP_SKIP_VIM=1 ;;
+            --no-codex)      SERP_SKIP_CODEX=1 ;;
+            --no-app-switcher) SERP_SKIP_APP_SWITCHER=1 ;;
+            --no-wallpaper-patches) SERP_SKIP_WALLPAPER_PATCHES=1 ;;
             --app-switcher-only) SERP_ONLY_APP_SWITCHER=1 ;;
             *)               die "Option inconnue: $arg (voir --help)" ;;
         esac
@@ -232,6 +247,22 @@ summary() {
     else
         log_info "Serpantinum officiel non detecte"
     fi
+    if command -v ghostty >/dev/null 2>&1; then
+        log_ok "Ghostty installe"
+    else
+        log_warn "Ghostty absent (verifie sa disponibilite dans les depots)"
+    fi
+    if [[ -x "$HOME/.npm-global/bin/codex" ]] || command -v codex >/dev/null 2>&1; then
+        log_ok "Codex installe"
+    else
+        log_warn "Codex absent (relance sans --no-packages/--no-codex)"
+    fi
+    if [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher/shell.qml" ]] && \
+       { command -v qs >/dev/null 2>&1 || command -v quickshell >/dev/null 2>&1; }; then
+        log_ok "Alt+Tab visuel installe"
+    else
+        log_warn "Alt+Tab visuel incomplet (switcher ou Quickshell absent)"
+    fi
     log_info "Reconnecte-toi a la session Hyprland pour appliquer l'autostart."
     log_info "Reconnecte-toi (ou exec zsh) pour charger Zsh."
 }
@@ -251,6 +282,7 @@ main() {
         run_module "$SERP_ROOT/modules/35-hypr-app-switcher.sh"
         local switcher_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hypr-app-switcher"
         [[ -f "$switcher_dir/shell.qml" ]] || die "Hypr App Switcher n'a pas ete installe"
+        run_module "$SERP_ROOT/modules/38-window-management.sh"
         run_module "$SERP_ROOT/modules/40-hyprland.sh"
         run_module "$SERP_ROOT/modules/45-autostart.sh"
         log_ok "Hypr App Switcher configure : ALT+TAB / ALT+SHIFT+TAB"
